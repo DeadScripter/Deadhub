@@ -2235,30 +2235,24 @@ function Tab:AddDrop(DropTitle)
     Drop.Root.Parent = Tab.Container
 
     -- Header
-    Drop.Header = Instance.new("TextButton")
-    Drop.Header.Size = UDim2.new(1, -10, 0, 40)
-    Drop.Header.Position = UDim2.fromOffset(5, 0)
-    Drop.Header.Text = ""
-    Drop.Header.AutoButtonColor = false
-    Drop.Header.BackgroundTransparency = 1
-    Drop.Header.Parent = Drop.Root
+    -- Header
+Drop.Header = Instance.new("TextButton")
+Drop.Header.Size = UDim2.new(1, -10, 0, 40)
+Drop.Header.Position = UDim2.fromOffset(5, 0)
+Drop.Header.Text = ""
+Drop.Header.AutoButtonColor = false
+Drop.Header.BackgroundColor3 = Creator.GetThemeProperty("Element")
+Drop.Header.BackgroundTransparency = 0 -- solid box so stroke is visible
+Drop.Header.Parent = Drop.Root
 
-    -- Rounded + border
-    local Corner = Instance.new("UICorner", Drop.Header)
-    Corner.CornerRadius = UDim.new(0, 8)
+-- Rounded corners
+local Corner = Instance.new("UICorner", Drop.Header)
+Corner.CornerRadius = UDim.new(0, 8)
 
-    local Stroke = Instance.new("UIStroke", Drop.Header)
-    Stroke.Thickness = 2
-    Stroke.Color = Creator.GetThemeProperty("ElementBorder")
-
-    -- Hover highlight
-    Drop.Header.MouseEnter:Connect(function()
-        Stroke.Color = Creator.GetThemeProperty("Accent")
-    end)
-    Drop.Header.MouseLeave:Connect(function()
-        Stroke.Color = Creator.GetThemeProperty("ElementBorder")
-    end)
-
+-- Border
+local Stroke = Instance.new("UIStroke", Drop.Header)
+Stroke.Thickness = 2
+Stroke.Color = Creator.GetThemeProperty("ElementBorder")
     -- Title label
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Text = DropTitle
