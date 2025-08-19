@@ -2223,8 +2223,6 @@ Components.Tab = (function()
 
 
 
-
-
 function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
@@ -2234,13 +2232,13 @@ function Tab:AddDrop(DropTitle)
     Drop.Root.Size = UDim2.new(1, 0, 0, 40)
     Drop.Root.Parent = Tab.Container
 
-    -- Header box
+    -- Header
     Drop.Header = Instance.new("TextButton")
     Drop.Header.Size = UDim2.new(1, -10, 0, 40)
     Drop.Header.Position = UDim2.fromOffset(5, 0)
     Drop.Header.Text = ""
     Drop.Header.AutoButtonColor = false
-    Drop.Header.BackgroundTransparency = 1 -- transparent box
+    Drop.Header.BackgroundTransparency = 1
     Drop.Header.Parent = Drop.Root
 
     -- Rounded + border
@@ -2284,7 +2282,7 @@ function Tab:AddDrop(DropTitle)
     Symbol.Parent = Drop.Header
     Drop.Symbol = Symbol
 
-    -- Holder
+    -- Holder (collapsible area)
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
@@ -2304,24 +2302,17 @@ function Tab:AddDrop(DropTitle)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- Motor
-    local Motor, SetSize = Creator.SpringMotor(0, Drop.Holder, "Size", true)
+    -- Height motor using Flipper
+    local HeightMotor = Flipper.SingleMotor.new(0)
+    HeightMotor:onStep(function(value)
+        Drop.Holder.Size = UDim2.new(1, 0, 0, value)
+        Drop.Root.Size = UDim2.new(1, 0, 0, 40 + value + (Drop.Open and 2 or 0))
+    end)
 
-    -- Safe update (works with both number-based and UDim2-based motors)
     local function Update(open)
         local target = open and (Layout.AbsoluteContentSize.Y + 12) or 0
-
-        local success, err = pcall(function()
-            -- try with UDim2
-            SetSize(UDim2.new(1, 0, 0, target))
-        end)
-        if not success then
-            -- fallback: numbers only
-            SetSize(target)
-        end
-
+        HeightMotor:setGoal(Flipper.Spring.new(target, { frequency = 8 }))
         Drop.Symbol.Text = open and "–" or "+"
-        Drop.Root.Size = UDim2.new(1, 0, 0, 40 + target + (open and 2 or 0))
     end
 
     Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -2364,10 +2355,7 @@ function Tab:AddDrop(DropTitle)
 
     return Drop
 end
-								        if not fischbypass then
-            
-									
-
+								
 
 
 
