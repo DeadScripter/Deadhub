@@ -2224,7 +2224,7 @@ Components.Tab = (function()
 
 
 
-
+--updated 
  function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
@@ -2363,17 +2363,11 @@ Components.Tab = (function()
 
     setmetatable(Drop, Elements)
     return Drop
-end
+								end
+								    -- Content container
     
-								
-
-
-
-
-
 
 								
-
 
 
 		setmetatable(Tab, Elements)
