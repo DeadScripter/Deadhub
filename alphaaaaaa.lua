@@ -2228,21 +2228,22 @@ Components.Tab = (function()
 function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
-    -- Root container (this is the whole drop: header + content)
+    -- Root container
     Drop.Root = Instance.new("Frame")
     Drop.Root.BackgroundTransparency = 1
-    Drop.Root.Size = UDim2.new(1, 0, 0, 40) -- header height
+    Drop.Root.Size = UDim2.new(1, 0, 0, 40)
     Drop.Root.Parent = Tab.Container
 
-    -- Header box (big clickable bar)
+    -- Header box
     Drop.Header = Instance.new("TextButton")
     Drop.Header.Size = UDim2.new(1, -10, 0, 40)
     Drop.Header.Position = UDim2.fromOffset(5, 0)
     Drop.Header.Text = ""
     Drop.Header.AutoButtonColor = false
+    Drop.Header.BackgroundTransparency = 1 -- transparent box
     Drop.Header.Parent = Drop.Root
 
-    -- Box visuals
+    -- Rounded + border
     local Corner = Instance.new("UICorner", Drop.Header)
     Corner.CornerRadius = UDim.new(0, 8)
 
@@ -2250,7 +2251,13 @@ function Tab:AddDrop(DropTitle)
     Stroke.Thickness = 2
     Stroke.Color = Creator.GetThemeProperty("ElementBorder")
 
-    Drop.Header.BackgroundColor3 = Creator.GetThemeProperty("Element")
+    -- Hover highlight
+    Drop.Header.MouseEnter:Connect(function()
+        Stroke.Color = Creator.GetThemeProperty("Accent")
+    end)
+    Drop.Header.MouseLeave:Connect(function()
+        Stroke.Color = Creator.GetThemeProperty("ElementBorder")
+    end)
 
     -- Title label
     local TitleLabel = Instance.new("TextLabel")
@@ -2277,7 +2284,7 @@ function Tab:AddDrop(DropTitle)
     Symbol.Parent = Drop.Header
     Drop.Symbol = Symbol
 
-    -- Holder for collapsible content
+    -- Holder
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
@@ -2285,7 +2292,7 @@ function Tab:AddDrop(DropTitle)
     Drop.Holder.Position = UDim2.new(0, 0, 0, 42)
     Drop.Holder.Parent = Drop.Root
 
-    -- Content frame
+    -- Content container
     Drop.Container = Instance.new("Frame")
     Drop.Container.BackgroundTransparency = 1
     Drop.Container.Size = UDim2.new(1, -20, 0, 0)
@@ -2297,15 +2304,22 @@ function Tab:AddDrop(DropTitle)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- Motor for height animation
+    -- Motor
     local Motor, SetSize = Creator.SpringMotor(0, Drop.Holder, "Size", true)
 
+    -- Safe update (works with both number-based and UDim2-based motors)
     local function Update(open)
-        local target = 0
-        if open then
-            target = Layout.AbsoluteContentSize.Y + 12
+        local target = open and (Layout.AbsoluteContentSize.Y + 12) or 0
+
+        local success, err = pcall(function()
+            -- try with UDim2
+            SetSize(UDim2.new(1, 0, 0, target))
+        end)
+        if not success then
+            -- fallback: numbers only
+            SetSize(target)
         end
-        SetSize(UDim2.new(1, 0, 0, target))
+
         Drop.Symbol.Text = open and "–" or "+"
         Drop.Root.Size = UDim2.new(1, 0, 0, 40 + target + (open and 2 or 0))
     end
@@ -2327,13 +2341,11 @@ function Tab:AddDrop(DropTitle)
         local Section = { Type = "Section" }
 
         local Icn = SectionIcon
-        if not fischbypass then
-            if Library.GetIcon and Library:GetIcon(Icn) then
-                Icn = Library:GetIcon(Icn)
-            end
-            if Icn == "" or Icn == nil then
-                Icn = nil
-            end
+        if Library and Library.GetIcon and Library:GetIcon(Icn) then
+            Icn = Library:GetIcon(Icn)
+        end
+        if Icn == "" or Icn == nil then
+            Icn = nil
         end
 
         local SectionFrame = Components.Section(SectionTitle, Drop.Container, Icn)
@@ -2347,12 +2359,14 @@ function Tab:AddDrop(DropTitle)
         return Section
     end
 
-    -- 👇 make Drop act like a Section too (so AddToggle etc. work directly)
+    -- Make Drop behave like a Section (toggles/sliders directly)
     setmetatable(Drop, Elements)
 
     return Drop
 end
-
+								        if not fischbypass then
+            
+									
 
 
 
