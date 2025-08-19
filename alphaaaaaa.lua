@@ -2223,6 +2223,8 @@ Components.Tab = (function()
 
 
 
+
+
 function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
@@ -2282,7 +2284,7 @@ function Tab:AddDrop(DropTitle)
     Symbol.Parent = Drop.Header
     Drop.Symbol = Symbol
 
-    -- Holder (collapsible area)
+    -- Holder
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
@@ -2302,7 +2304,7 @@ function Tab:AddDrop(DropTitle)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- Height motor using Flipper
+    -- Use Flipper motor directly
     local HeightMotor = Flipper.SingleMotor.new(0)
     HeightMotor:onStep(function(value)
         Drop.Holder.Size = UDim2.new(1, 0, 0, value)
@@ -2321,13 +2323,12 @@ function Tab:AddDrop(DropTitle)
         end
     end)
 
-    -- Toggle open/close
     Drop.Header.MouseButton1Click:Connect(function()
         Drop.Open = not Drop.Open
         Update(Drop.Open)
     end)
 
-    -- Public: Add section inside drop
+    -- AddSection support
     function Drop:AddSection(SectionTitle, SectionIcon)
         local Section = { Type = "Section" }
 
@@ -2350,14 +2351,17 @@ function Tab:AddDrop(DropTitle)
         return Section
     end
 
-    -- Make Drop behave like a Section (toggles/sliders directly)
     setmetatable(Drop, Elements)
-
     return Drop
 end
+
+
+
+
+
+
+
 								
-
-
 
 
 
