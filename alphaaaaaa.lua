@@ -2226,6 +2226,7 @@ Components.Tab = (function()
 
 
 
+
 function Tab:AddDrop(DropTitle, DropIcon)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
@@ -2239,47 +2240,60 @@ function Tab:AddDrop(DropTitle, DropIcon)
         end
     end
 
-    -- Create a Drop frame styled like a section
-    local DropFrame = Components.Section(DropTitle, Tab.Container, Icon)
-    Drop.Container = DropFrame.Container
-    Drop.ScrollFrame = Tab.Container
+    -- Root frame (goes in Tab just like a Section would)
+    Drop.Root = Instance.new("Frame")
+    Drop.Root.BackgroundTransparency = 1
+    Drop.Root.Size = UDim2.new(1, 0, 0, 34)
+    Drop.Root.Parent = Tab.Container
 
-    -- Inner list for sections
+    -- Header bar
+    local Header = Components.Section(DropTitle, Drop.Root, Icon)
+    Drop.Header = Header.Container
+    Drop.Header.Size = UDim2.new(1, 0, 0, 34)
+
+    local Chevron = Drop.Header:FindFirstChild("Chevron", true)
+
+    -- Holder for collapsible content
+    Drop.Holder = Instance.new("Frame")
+    Drop.Holder.BackgroundTransparency = 1
+    Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
+    Drop.Holder.ClipsDescendants = true
+    Drop.Holder.Position = UDim2.new(0, 0, 0, 34)
+    Drop.Holder.Parent = Drop.Root
+
+    -- Content container inside holder (real parent for sections)
+    Drop.Container = Instance.new("Frame")
+    Drop.Container.BackgroundTransparency = 1
+    Drop.Container.Size = UDim2.new(1, -12, 0, 0)
+    Drop.Container.Position = UDim2.fromOffset(6, 6)
+    Drop.Container.Parent = Drop.Holder
+
     local Layout = Instance.new("UIListLayout")
     Layout.Padding = UDim.new(0, 6)
-    Layout.FillDirection = Enum.FillDirection.Vertical
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- start collapsed
-    Drop.Container.ClipsDescendants = true
-    Drop.Container.Size = UDim2.new(1, 0, 0, 0)
-
-    -- motor for height
-    local heightMotor, setHeight = Creator.SpringMotor(0, Drop.Container, "Size", true)
-
-    local Chevron = Drop.Container:FindFirstChild("Chevron", true)
+    -- Animate height with SpringMotor
+    local Motor, SetSize = Creator.SpringMotor(0, Drop.Holder, "Size", true)
 
     local function Update(open)
-        local targetHeight = 0
+        local target = 0
         if open then
-            targetHeight = Layout.AbsoluteContentSize.Y + 12 -- padding
+            target = Layout.AbsoluteContentSize.Y + 12
         end
-        setHeight(UDim2.new(1, 0, 0, targetHeight))
+        SetSize(UDim2.new(1, 0, 0, target))
         if Chevron then
             Chevron.Rotation = open and 180 or 0
         end
     end
 
-    -- listen for content changes
     Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         if Drop.Open then
             Update(true)
         end
     end)
 
-    -- toggle on header click
-    local Button = Drop.Container:FindFirstChildOfClass("TextButton")
+    local Button = Drop.Header:FindFirstChildOfClass("TextButton")
     if Button then
         Button.MouseButton1Click:Connect(function()
             Drop.Open = not Drop.Open
@@ -2287,7 +2301,7 @@ function Tab:AddDrop(DropTitle, DropIcon)
         end)
     end
 
-    -- add Section inside this drop
+    -- Add Section inside drop
     function Drop:AddSection(SectionTitle, SectionIcon)
         local Section = { Type = "Section" }
 
@@ -2303,22 +2317,18 @@ function Tab:AddDrop(DropTitle, DropIcon)
 
         local SectionFrame = Components.Section(SectionTitle, Drop.Container, Icn)
         Section.Container = SectionFrame.Container
-        Section.ScrollFrame = Drop.Container
+        Section.ScrollFrame = Tab.Container -- stays consistent with your lib
 
         setmetatable(Section, Elements)
         table.insert(Drop.Sections, Section)
 
-        if Drop.Open then
-            Update(true)
-        end
-
+        if Drop.Open then Update(true) end
         return Section
     end
 
     setmetatable(Drop, Elements)
     return Drop
 end
-
 
 
 
