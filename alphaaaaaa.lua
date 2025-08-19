@@ -2225,6 +2225,7 @@ Components.Tab = (function()
 
 
 
+ 
 function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
@@ -2234,25 +2235,37 @@ function Tab:AddDrop(DropTitle)
     Drop.Root.Size = UDim2.new(1, 0, 0, 40)
     Drop.Root.Parent = Tab.Container
 
-    -- Header
-    -- Header
-Drop.Header = Instance.new("TextButton")
-Drop.Header.Size = UDim2.new(1, -10, 0, 40)
-Drop.Header.Position = UDim2.fromOffset(5, 0)
-Drop.Header.Text = ""
-Drop.Header.AutoButtonColor = false
-Drop.Header.BackgroundColor3 = Creator.GetThemeProperty("Element")
-Drop.Header.BackgroundTransparency = 0 -- solid box so stroke is visible
-Drop.Header.Parent = Drop.Root
+    -- Header (big clickable bar)
+    Drop.Header = Instance.new("TextButton")
+    Drop.Header.Size = UDim2.new(1, -10, 0, 40)
+    Drop.Header.Position = UDim2.fromOffset(5, 0)
+    Drop.Header.Text = ""
+    Drop.Header.AutoButtonColor = false
+    Drop.Header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Drop.Header.BackgroundTransparency = 0.89
+    Drop.Header.Parent = Drop.Root
+    Drop.Header.ThemeTag = {
+        BackgroundColor3 = "Element",
+        BackgroundTransparency = "ElementTransparency",
+    }
 
--- Rounded corners
-local Corner = Instance.new("UICorner", Drop.Header)
-Corner.CornerRadius = UDim.new(0, 8)
+    -- Rounded corners
+    Creator.New("UICorner", {
+        CornerRadius = UDim.new(0, 8),
+        Parent = Drop.Header,
+    })
 
--- Border
-local Stroke = Instance.new("UIStroke", Drop.Header)
-Stroke.Thickness = 2
-Stroke.Color = Creator.GetThemeProperty("ElementBorder")
+    -- Border using ThemeTag (like buttons/toggles)
+    Creator.New("UIStroke", {
+        Transparency = 0.5,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = Color3.fromRGB(0, 0, 0),
+        ThemeTag = {
+            Color = "ElementBorder",
+        },
+        Parent = Drop.Header,
+    })
+
     -- Title label
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Text = DropTitle
@@ -2262,8 +2275,11 @@ Stroke.Color = Creator.GetThemeProperty("ElementBorder")
     TitleLabel.Size = UDim2.new(1, -50, 1, 0)
     TitleLabel.Position = UDim2.fromOffset(12, 0)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.TextColor3 = Creator.GetThemeProperty("Text")
+    TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
     TitleLabel.Parent = Drop.Header
+    TitleLabel.ThemeTag = {
+        TextColor3 = "Text",
+    }
 
     -- Plus/Minus symbol
     local Symbol = Instance.new("TextLabel")
@@ -2274,11 +2290,14 @@ Stroke.Color = Creator.GetThemeProperty("ElementBorder")
     Symbol.AnchorPoint = Vector2.new(1, 0.5)
     Symbol.Position = UDim2.new(1, -12, 0.5, 0)
     Symbol.BackgroundTransparency = 1
-    Symbol.TextColor3 = Creator.GetThemeProperty("Text")
+    Symbol.TextColor3 = Color3.fromRGB(240, 240, 240)
     Symbol.Parent = Drop.Header
+    Symbol.ThemeTag = {
+        TextColor3 = "Text",
+    }
     Drop.Symbol = Symbol
 
-    -- Holder
+    -- Holder (collapsible)
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
@@ -2298,7 +2317,7 @@ Stroke.Color = Creator.GetThemeProperty("ElementBorder")
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- Use Flipper motor directly
+    -- Flipper motor for height animation
     local HeightMotor = Flipper.SingleMotor.new(0)
     HeightMotor:onStep(function(value)
         Drop.Holder.Size = UDim2.new(1, 0, 0, value)
@@ -2322,7 +2341,7 @@ Stroke.Color = Creator.GetThemeProperty("ElementBorder")
         Update(Drop.Open)
     end)
 
-    -- AddSection support
+    -- Public: Add section inside drop
     function Drop:AddSection(SectionTitle, SectionIcon)
         local Section = { Type = "Section" }
 
@@ -2348,7 +2367,7 @@ Stroke.Color = Creator.GetThemeProperty("ElementBorder")
     setmetatable(Drop, Elements)
     return Drop
 end
-
+    
 
 
 
