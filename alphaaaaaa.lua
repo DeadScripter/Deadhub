@@ -1,4 +1,4 @@
-.
+
 --- button
 local Show_Button = false
 ---
@@ -2225,47 +2225,71 @@ Components.Tab = (function()
 
 
 
-
-
-function Tab:AddDrop(DropTitle, DropIcon)
+function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
-    local Icon = DropIcon
-    if not fischbypass then 
-        if Library.GetIcon and Library:GetIcon(Icon) then
-            Icon = Library:GetIcon(Icon)
-        end
-        if Icon == "" or Icon == nil then
-            Icon = nil
-        end
-    end
-
-    -- Root frame (goes in Tab just like a Section would)
+    -- Root container (this is the whole drop: header + content)
     Drop.Root = Instance.new("Frame")
     Drop.Root.BackgroundTransparency = 1
-    Drop.Root.Size = UDim2.new(1, 0, 0, 34)
+    Drop.Root.Size = UDim2.new(1, 0, 0, 40) -- header height
     Drop.Root.Parent = Tab.Container
 
-    -- Header bar
-    local Header = Components.Section(DropTitle, Drop.Root, Icon)
-    Drop.Header = Header.Container
-    Drop.Header.Size = UDim2.new(1, 0, 0, 34)
+    -- Header box (big clickable bar)
+    Drop.Header = Instance.new("TextButton")
+    Drop.Header.Size = UDim2.new(1, -10, 0, 40)
+    Drop.Header.Position = UDim2.fromOffset(5, 0)
+    Drop.Header.Text = ""
+    Drop.Header.AutoButtonColor = false
+    Drop.Header.Parent = Drop.Root
 
-    local Chevron = Drop.Header:FindFirstChild("Chevron", true)
+    -- Box visuals
+    local Corner = Instance.new("UICorner", Drop.Header)
+    Corner.CornerRadius = UDim.new(0, 8)
+
+    local Stroke = Instance.new("UIStroke", Drop.Header)
+    Stroke.Thickness = 2
+    Stroke.Color = Creator.GetThemeProperty("ElementBorder")
+
+    Drop.Header.BackgroundColor3 = Creator.GetThemeProperty("Element")
+
+    -- Title label
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Text = DropTitle
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 16
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+    TitleLabel.Position = UDim2.fromOffset(12, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.TextColor3 = Creator.GetThemeProperty("Text")
+    TitleLabel.Parent = Drop.Header
+
+    -- Plus/Minus symbol
+    local Symbol = Instance.new("TextLabel")
+    Symbol.Text = "+"
+    Symbol.Font = Enum.Font.GothamBold
+    Symbol.TextSize = 20
+    Symbol.Size = UDim2.fromOffset(20, 20)
+    Symbol.AnchorPoint = Vector2.new(1, 0.5)
+    Symbol.Position = UDim2.new(1, -12, 0.5, 0)
+    Symbol.BackgroundTransparency = 1
+    Symbol.TextColor3 = Creator.GetThemeProperty("Text")
+    Symbol.Parent = Drop.Header
+    Drop.Symbol = Symbol
 
     -- Holder for collapsible content
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
     Drop.Holder.ClipsDescendants = true
-    Drop.Holder.Position = UDim2.new(0, 0, 0, 34)
+    Drop.Holder.Position = UDim2.new(0, 0, 0, 42)
     Drop.Holder.Parent = Drop.Root
 
-    -- Content container inside holder (real parent for sections)
+    -- Content frame
     Drop.Container = Instance.new("Frame")
     Drop.Container.BackgroundTransparency = 1
-    Drop.Container.Size = UDim2.new(1, -12, 0, 0)
-    Drop.Container.Position = UDim2.fromOffset(6, 6)
+    Drop.Container.Size = UDim2.new(1, -20, 0, 0)
+    Drop.Container.Position = UDim2.fromOffset(10, 6)
     Drop.Container.Parent = Drop.Holder
 
     local Layout = Instance.new("UIListLayout")
@@ -2273,7 +2297,7 @@ function Tab:AddDrop(DropTitle, DropIcon)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Drop.Container
 
-    -- Animate height with SpringMotor
+    -- Motor for height animation
     local Motor, SetSize = Creator.SpringMotor(0, Drop.Holder, "Size", true)
 
     local function Update(open)
@@ -2282,9 +2306,8 @@ function Tab:AddDrop(DropTitle, DropIcon)
             target = Layout.AbsoluteContentSize.Y + 12
         end
         SetSize(UDim2.new(1, 0, 0, target))
-        if Chevron then
-            Chevron.Rotation = open and 180 or 0
-        end
+        Drop.Symbol.Text = open and "–" or "+"
+        Drop.Root.Size = UDim2.new(1, 0, 0, 40 + target + (open and 2 or 0))
     end
 
     Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -2293,15 +2316,13 @@ function Tab:AddDrop(DropTitle, DropIcon)
         end
     end)
 
-    local Button = Drop.Header:FindFirstChildOfClass("TextButton")
-    if Button then
-        Button.MouseButton1Click:Connect(function()
-            Drop.Open = not Drop.Open
-            Update(Drop.Open)
-        end)
-    end
+    -- Toggle open/close
+    Drop.Header.MouseButton1Click:Connect(function()
+        Drop.Open = not Drop.Open
+        Update(Drop.Open)
+    end)
 
-    -- Add Section inside drop
+    -- Public: Add section inside drop
     function Drop:AddSection(SectionTitle, SectionIcon)
         local Section = { Type = "Section" }
 
@@ -2317,7 +2338,7 @@ function Tab:AddDrop(DropTitle, DropIcon)
 
         local SectionFrame = Components.Section(SectionTitle, Drop.Container, Icn)
         Section.Container = SectionFrame.Container
-        Section.ScrollFrame = Tab.Container -- stays consistent with your lib
+        Section.ScrollFrame = Tab.Container
 
         setmetatable(Section, Elements)
         table.insert(Drop.Sections, Section)
@@ -2326,12 +2347,11 @@ function Tab:AddDrop(DropTitle, DropIcon)
         return Section
     end
 
+    -- 👇 make Drop act like a Section too (so AddToggle etc. work directly)
     setmetatable(Drop, Elements)
+
     return Drop
 end
-
-
-
 
 
 
