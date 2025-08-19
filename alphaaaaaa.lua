@@ -2225,8 +2225,7 @@ Components.Tab = (function()
 
 
 
- 
-function Tab:AddDrop(DropTitle)
+ function Tab:AddDrop(DropTitle)
     local Drop = { Type = "Drop", Open = false, Sections = {} }
 
     -- Root container
@@ -2235,69 +2234,67 @@ function Tab:AddDrop(DropTitle)
     Drop.Root.Size = UDim2.new(1, 0, 0, 40)
     Drop.Root.Parent = Tab.Container
 
-    -- Header (big clickable bar)
-    Drop.Header = Instance.new("TextButton")
-    Drop.Header.Size = UDim2.new(1, -10, 0, 40)
-    Drop.Header.Position = UDim2.fromOffset(5, 0)
-    Drop.Header.Text = ""
-    Drop.Header.AutoButtonColor = false
-    Drop.Header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Drop.Header.BackgroundTransparency = 0.89
-    Drop.Header.Parent = Drop.Root
-    Drop.Header.ThemeTag = {
-        BackgroundColor3 = "Element",
-        BackgroundTransparency = "ElementTransparency",
-    }
-
-    -- Rounded corners
-    Creator.New("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = Drop.Header,
+    -- Header (big clickable bar, theme styled)
+    Drop.Header = Creator.New("TextButton", {
+        Size = UDim2.new(1, -10, 0, 40),
+        Position = UDim2.fromOffset(5, 0),
+        Text = "",
+        AutoButtonColor = false,
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.89,
+        Parent = Drop.Root,
+        ThemeTag = {
+            BackgroundColor3 = "Element",
+            BackgroundTransparency = "ElementTransparency",
+        },
+    }, {
+        Creator.New("UICorner", {
+            CornerRadius = UDim.new(0, 8),
+        }),
+        Creator.New("UIStroke", {
+            Transparency = 0.5,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Color = Color3.fromRGB(0, 0, 0),
+            ThemeTag = {
+                Color = "ElementBorder",
+            },
+        }),
     })
 
-    -- Border using ThemeTag (like buttons/toggles)
-    Creator.New("UIStroke", {
-        Transparency = 0.5,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        Color = Color3.fromRGB(0, 0, 0),
+    -- Title label
+    local TitleLabel = Creator.New("TextLabel", {
+        Text = DropTitle,
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Size = UDim2.new(1, -50, 1, 0),
+        Position = UDim2.fromOffset(12, 0),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(240, 240, 240),
         ThemeTag = {
-            Color = "ElementBorder",
+            TextColor3 = "Text",
         },
         Parent = Drop.Header,
     })
 
-    -- Title label
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Text = DropTitle
-    TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.TextSize = 16
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-    TitleLabel.Position = UDim2.fromOffset(12, 0)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-    TitleLabel.Parent = Drop.Header
-    TitleLabel.ThemeTag = {
-        TextColor3 = "Text",
-    }
-
     -- Plus/Minus symbol
-    local Symbol = Instance.new("TextLabel")
-    Symbol.Text = "+"
-    Symbol.Font = Enum.Font.GothamBold
-    Symbol.TextSize = 20
-    Symbol.Size = UDim2.fromOffset(20, 20)
-    Symbol.AnchorPoint = Vector2.new(1, 0.5)
-    Symbol.Position = UDim2.new(1, -12, 0.5, 0)
-    Symbol.BackgroundTransparency = 1
-    Symbol.TextColor3 = Color3.fromRGB(240, 240, 240)
-    Symbol.Parent = Drop.Header
-    Symbol.ThemeTag = {
-        TextColor3 = "Text",
-    }
+    local Symbol = Creator.New("TextLabel", {
+        Text = "+",
+        Font = Enum.Font.GothamBold,
+        TextSize = 20,
+        Size = UDim2.fromOffset(20, 20),
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -12, 0.5, 0),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(240, 240, 240),
+        ThemeTag = {
+            TextColor3 = "Text",
+        },
+        Parent = Drop.Header,
+    })
     Drop.Symbol = Symbol
 
-    -- Holder (collapsible)
+    -- Holder (collapsible area)
     Drop.Holder = Instance.new("Frame")
     Drop.Holder.BackgroundTransparency = 1
     Drop.Holder.Size = UDim2.new(1, 0, 0, 0)
@@ -2368,6 +2365,7 @@ function Tab:AddDrop(DropTitle)
     return Drop
 end
     
+								
 
 
 
