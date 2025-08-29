@@ -7005,7 +7005,7 @@ local MinimizeButton = New("TextButton", {
     New("ImageLabel", {
         Image = chosenIcon,
         BackgroundTransparency = 1,
-        Size = UDim2.new(1.09, 0, 1.09, 0), -- fills parent
+        Size = UDim2.new(1.09, 0.3, 1.09, 0.3), -- fills parent
         ScaleType = Enum.ScaleType.Fit, -- keeps proportions
         AnchorPoint = Vector2.new(0.3, 0.3), -- anchor center
         Position = UDim2.new(0.3, 0, 0.3, 0),
