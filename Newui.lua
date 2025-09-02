@@ -3674,61 +3674,40 @@ Components.Window = (function()
 		end
 
 		local TabModule = Components.Tab:Init(Window)
-		function Window:AddTab(TabConfig)
-    function TabModule:New(Title, Icon, Parent, PremiumFlag)
-    local Tab = {
-        Selected = false,
-        Name = Title,
-        Type = "Tab",
-    }
+	function Window:AddTab(TabConfig)
+    local Tab = TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder, TabConfig.premium)
 
-    Tab.Premium = (PremiumFlag == true or PremiumFlag == "true")
+    -- premium check
+    if TabConfig.premium and not getgenv().premiumuser then
+        -- wipe everything that may have been added during TabModule:New
+        for _, child in ipairs(Tab.Frame:GetChildren()) do
+            child:Destroy()
+        end
 
-Tab.Premium = (PremiumFlag == true or PremiumFlag == "true")
+        -- block new elements
+        local function Noop() return Tab end
+        Tab.AddToggle    = Noop
+        Tab.AddDrop      = Noop
+        Tab.AddButton    = Noop
+        Tab.AddSlider    = Noop
+        Tab.AddDropdown  = Noop
+        Tab.AddTextbox   = Noop
+        Tab.AddLabel     = Noop
+        Tab.AddParagraph = Noop
 
--- If locked premium tab
-if Tab.Premium and not getgenv().premiumuser then
-    -- Create the Frame so tab switching system doesn't break
-    Tab.Frame = Instance.new("Frame")
-    Tab.Frame.Name = Title .. "_Frame"
-    Tab.Frame.Size = UDim2.new(1, 0, 1, 0)
-    Tab.Frame.BackgroundTransparency = 1
-    Tab.Frame.Visible = false
-    Tab.Frame.Parent = Parent
+        -- add locked notice
+        local LockedLabel = Instance.new("TextLabel")
+        LockedLabel.Size = UDim2.new(1, -20, 1, -20)
+        LockedLabel.Position = UDim2.new(0, 10, 0, 10)
+        LockedLabel.BackgroundTransparency = 1
+        LockedLabel.TextWrapped = true
+        LockedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        LockedLabel.Text = "This tab is premium only.\nJoin our Discord server to unlock all the crazy features!"
+        LockedLabel.Parent = Tab.Frame
+    end
 
-    -- Create the Button so it shows up in the tab bar
-    Tab.Button = Instance.new("TextButton")
-    Tab.Button.Name = Title .. "_Button"
-    Tab.Button.Text = Title .. " 🔒"
-    Tab.Button.Size = UDim2.new(0, 120, 0, 30)
-    Tab.Button.BackgroundTransparency = 1
-    Tab.Button.TextColor3 = Color3.fromRGB(200, 50, 50) -- red/disabled look
-    Tab.Button.Parent = Parent
-
-    -- kill builder functions
-    local function Noop() return Tab end
-    Tab.AddToggle    = Noop
-    Tab.AddDrop      = Noop
-    Tab.AddButton    = Noop
-    Tab.AddSlider    = Noop
-    Tab.AddDropdown  = Noop
-    Tab.AddTextbox   = Noop
-    Tab.AddLabel     = Noop
-    Tab.AddParagraph = Noop
-
-    -- Inject locked notice
-    local LockedLabel = Instance.new("TextLabel")
-    LockedLabel.Size = UDim2.new(1, -20, 1, -20)
-    LockedLabel.Position = UDim2.new(0, 10, 0, 10)
-    LockedLabel.BackgroundTransparency = 1
-    LockedLabel.TextWrapped = true
-    LockedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    LockedLabel.Text = "This tab is premium only.\nJoin our Discord server to unlock all the crazy features!"
-    LockedLabel.Parent = Tab.Frame
-
-    return Tab -- important: return a fully valid Tab object
+    return Tab
 end
-
 		function Window:SelectTab(Tab)
 			TabModule:SelectTab(Tab)
 		end
