@@ -3681,6 +3681,7 @@ Components.Window = (function()
         -- disable all element functions right away
         local function Noop() return Tab end
         Tab.AddToggle    = Noop
+		Tab.AddDrop      = Noop
         Tab.AddButton    = Noop
         Tab.AddSlider    = Noop
         Tab.AddDropdown  = Noop
