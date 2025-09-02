@@ -3684,42 +3684,50 @@ Components.Window = (function()
 
     Tab.Premium = (PremiumFlag == true or PremiumFlag == "true")
 
-    -- 🚫 if it's a locked premium tab, stop here
-    if Tab.Premium and not getgenv().premiumuser then
-        -- create an empty UI frame for the tab
-        Tab.Frame = Instance.new("Frame")
-        Tab.Frame.Parent = Parent
-        Tab.Frame.Size = UDim2.new(1, 0, 1, 0)
-        Tab.Frame.Visible = false
+Tab.Premium = (PremiumFlag == true or PremiumFlag == "true")
 
-        -- create the tab button
-        Tab.Button = Instance.new("TextButton")
-        Tab.Button.Text = Title .. " 🔒"
-        Tab.Button.Parent = Parent
+-- If locked premium tab
+if Tab.Premium and not getgenv().premiumuser then
+    -- Create the Frame so tab switching system doesn't break
+    Tab.Frame = Instance.new("Frame")
+    Tab.Frame.Name = Title .. "_Frame"
+    Tab.Frame.Size = UDim2.new(1, 0, 1, 0)
+    Tab.Frame.BackgroundTransparency = 1
+    Tab.Frame.Visible = false
+    Tab.Frame.Parent = Parent
 
-        -- replace builders with no-ops
-        local function Noop() return Tab end
-        Tab.AddToggle    = Noop
-        Tab.AddDrop      = Noop
-        Tab.AddButton    = Noop
-        Tab.AddSlider    = Noop
-        Tab.AddDropdown  = Noop
-        Tab.AddTextbox   = Noop
-        Tab.AddLabel     = Noop
-        Tab.AddParagraph = Noop
+    -- Create the Button so it shows up in the tab bar
+    Tab.Button = Instance.new("TextButton")
+    Tab.Button.Name = Title .. "_Button"
+    Tab.Button.Text = Title .. " 🔒"
+    Tab.Button.Size = UDim2.new(0, 120, 0, 30)
+    Tab.Button.BackgroundTransparency = 1
+    Tab.Button.TextColor3 = Color3.fromRGB(200, 50, 50) -- red/disabled look
+    Tab.Button.Parent = Parent
 
-        -- add locked notice inside frame
-        task.defer(function()
-            local TextLabel = Instance.new("TextLabel")
-            TextLabel.Size = UDim2.new(1, -20, 1, -20)
-            TextLabel.Position = UDim2.new(0, 10, 0, 10)
-            TextLabel.TextWrapped = true
-            TextLabel.Text = "This tab is premium only.\nJoin our Discord server to buy it and unlock all the crazy features!"
-            TextLabel.Parent = Tab.Frame
-        end)
+    -- kill builder functions
+    local function Noop() return Tab end
+    Tab.AddToggle    = Noop
+    Tab.AddDrop      = Noop
+    Tab.AddButton    = Noop
+    Tab.AddSlider    = Noop
+    Tab.AddDropdown  = Noop
+    Tab.AddTextbox   = Noop
+    Tab.AddLabel     = Noop
+    Tab.AddParagraph = Noop
 
-        return Tab -- ✅ stop here, don’t build normal stuff
-    end
+    -- Inject locked notice
+    local LockedLabel = Instance.new("TextLabel")
+    LockedLabel.Size = UDim2.new(1, -20, 1, -20)
+    LockedLabel.Position = UDim2.new(0, 10, 0, 10)
+    LockedLabel.BackgroundTransparency = 1
+    LockedLabel.TextWrapped = true
+    LockedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LockedLabel.Text = "This tab is premium only.\nJoin our Discord server to unlock all the crazy features!"
+    LockedLabel.Parent = Tab.Frame
+
+    return Tab -- important: return a fully valid Tab object
+end
 
 		function Window:SelectTab(Tab)
 			TabModule:SelectTab(Tab)
