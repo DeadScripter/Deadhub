@@ -3675,13 +3675,32 @@ Components.Window = (function()
 
 		local TabModule = Components.Tab:Init(Window)
 		function Window:AddTab(TabConfig)
-    local Tab = TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder, TabConfig.premium)
+    function TabModule:New(Title, Icon, Parent, PremiumFlag)
+    local Tab = {
+        Selected = false,
+        Name = Title,
+        Type = "Tab",
+    }
 
-    if TabConfig.premium and not getgenv().premiumuser then
-        -- disable all element functions right away
+    Tab.Premium = (PremiumFlag == true or PremiumFlag == "true")
+
+    -- 🚫 if it's a locked premium tab, stop here
+    if Tab.Premium and not getgenv().premiumuser then
+        -- create an empty UI frame for the tab
+        Tab.Frame = Instance.new("Frame")
+        Tab.Frame.Parent = Parent
+        Tab.Frame.Size = UDim2.new(1, 0, 1, 0)
+        Tab.Frame.Visible = false
+
+        -- create the tab button
+        Tab.Button = Instance.new("TextButton")
+        Tab.Button.Text = Title .. " 🔒"
+        Tab.Button.Parent = Parent
+
+        -- replace builders with no-ops
         local function Noop() return Tab end
         Tab.AddToggle    = Noop
-		Tab.AddDrop      = Noop
+        Tab.AddDrop      = Noop
         Tab.AddButton    = Noop
         Tab.AddSlider    = Noop
         Tab.AddDropdown  = Noop
@@ -3689,16 +3708,18 @@ Components.Window = (function()
         Tab.AddLabel     = Noop
         Tab.AddParagraph = Noop
 
-        -- now add the locked message
-        -- this runs AFTER disabling, so your :AddToggle calls won’t work anymore
-        Tab:AddParagraph({
-            Title = "Premium Only",
-            Content = "This tab is premium only.\nJoin our Discord server n buy it to unlock it and get all the crazy features!"
-        })
-    end
+        -- add locked notice inside frame
+        task.defer(function()
+            local TextLabel = Instance.new("TextLabel")
+            TextLabel.Size = UDim2.new(1, -20, 1, -20)
+            TextLabel.Position = UDim2.new(0, 10, 0, 10)
+            TextLabel.TextWrapped = true
+            TextLabel.Text = "This tab is premium only.\nJoin our Discord server to buy it and unlock all the crazy features!"
+            TextLabel.Parent = Tab.Frame
+        end)
 
-    return Tab
-end
+        return Tab -- ✅ stop here, don’t build normal stuff
+    end
 
 		function Window:SelectTab(Tab)
 			TabModule:SelectTab(Tab)
