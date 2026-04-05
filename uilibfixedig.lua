@@ -8,7 +8,7 @@
 ╚═╝░░░░░╚══════╝░╚═════╝░╚══════╝╚═╝░░╚══╝░░░╚═╝░░░  ╚═╝░░░░░╚══════╝░╚═════╝░╚═════╝░
 
 A modified version of Fluent
-https://fluent-pl.us
+-- modified by dead / and the original fluent plus owner 
 
 ]]
 
@@ -1844,30 +1844,95 @@ local GUI = New("ScreenGui", {
 Library.GUI = GUI
 ProtectGui(GUI)
 
+Library._BulkWriteBurst = 0
+Library._BulkWriteLast = 0
+Library._BulkWriteUntil = 0
+Library._CallbackQueue = {}
+Library._CallbackWorker = false
+
+function Library:MarkOptionWrite()
+	local now = os.clock()
+	if now - (self._BulkWriteLast or 0) > 0.12 then
+		self._BulkWriteBurst = 0
+	end
+	self._BulkWriteLast = now
+	self._BulkWriteBurst = (self._BulkWriteBurst or 0) + 1
+
+	local extend = self._BulkWriteBurst >= 8 and 0.45 or 0.18
+	self._BulkWriteUntil = math.max(self._BulkWriteUntil or 0, now + extend)
+end
+
+function Library:IsBulkApplying()
+	return (self._BulkWriteUntil or 0) > os.clock()
+end
+
+function Library:_HandleCallbackError(Event)
+	local _, i = tostring(Event):find(":%d+: ")
+
+	if not i then
+		return Library:Notify({
+			Title = "Interface",
+			Content = "Callback error",
+			SubContent = tostring(Event),
+			Duration = 5,
+		})
+	end
+
+	return Library:Notify({
+		Title = "Interface",
+		Content = "Callback error",
+		SubContent = tostring(Event):sub(i + 1),
+		Duration = 5,
+	})
+end
+
+function Library:_RunCallback(Function, PackedArgs)
+	local Success, Event = pcall(Function, table.unpack(PackedArgs, 1, PackedArgs.n or #PackedArgs))
+	if not Success then
+		return self:_HandleCallbackError(Event)
+	end
+end
+
+function Library:_EnsureCallbackWorker()
+	if self._CallbackWorker then
+		return
+	end
+
+	self._CallbackWorker = true
+	task.spawn(function()
+		while #self._CallbackQueue > 0 do
+			local perStep = self:IsBulkApplying() and 2 or 6
+			for _ = 1, perStep do
+				local item = table.remove(self._CallbackQueue, 1)
+				if not item then
+					break
+				end
+				self:_RunCallback(item.Function, item.Args)
+			end
+			task.wait()
+		end
+		self._CallbackWorker = false
+	end)
+end
+
 function Library:SafeCallback(Function, ...)
 	if not Function then
 		return
 	end
 
-	local Success, Event = pcall(Function, ...)
-	if not Success then
-		local _, i = Event:find(":%d+: ")
-
-		if not i then
-			return Library:Notify({
-				Title = "Interface",
-				Content = "Callback error",
-				SubContent = Event,
-				Duration = 5,
-			})
-		end
-
-		return Library:Notify({
-			Title = "Interface",
-			Content = "Callback error",
-			SubContent = Event:sub(i + 1),
-			Duration = 5,
+	local PackedArgs = table.pack(...)
+	if self:IsBulkApplying() then
+		table.insert(self._CallbackQueue, {
+			Function = Function,
+			Args = PackedArgs,
 		})
+		self:_EnsureCallbackWorker()
+		return
+	end
+
+	local Success, Event = pcall(Function, table.unpack(PackedArgs, 1, PackedArgs.n))
+	if not Success then
+		return self:_HandleCallbackError(Event)
 	end
 end--?
 function Library:Round(Number, Factor)
@@ -5324,21 +5389,27 @@ ElementsTable.Toggle = (function()
 		end
 
 		function Toggle:SetValue(Value)
+			Library:MarkOptionWrite()
 			Value = not not Value
 			Toggle.Value = Value
 
 			Creator.OverrideTag(ToggleBorder, { Color = Toggle.Value and "Accent" or "ToggleSlider" })
 			Creator.OverrideTag(ToggleCircle, { ImageColor3 = Toggle.Value and "ToggleToggled" or "ToggleSlider" })
-			TweenService:Create(
-				ToggleCircle,
-				TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-				{ Position = UDim2.new(0, Toggle.Value and 19 or 2, 0.5, 0) }
-			):Play()
-			TweenService:Create(
-				ToggleSlider,
-				TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-				{ BackgroundTransparency = Toggle.Value and 0.45 or 1 }
-			):Play()
+			if Library:IsBulkApplying() then
+				ToggleCircle.Position = UDim2.new(0, Toggle.Value and 19 or 2, 0.5, 0)
+				ToggleSlider.BackgroundTransparency = Toggle.Value and 0.45 or 1
+			else
+				TweenService:Create(
+					ToggleCircle,
+					TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+					{ Position = UDim2.new(0, Toggle.Value and 19 or 2, 0.5, 0) }
+				):Play()
+				TweenService:Create(
+					ToggleSlider,
+					TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+					{ BackgroundTransparency = Toggle.Value and 0.45 or 1 }
+				):Play()
+			end
 			ToggleCircle.ImageTransparency = Toggle.Value and 0 or 0.5
 
 			Library:SafeCallback(Toggle.Callback, Toggle.Value)
@@ -5570,6 +5641,7 @@ ElementsTable.Dropdown = (function()
 
 		local DropdownHolderFrame = New("Frame", {
 			Size = UDim2.fromScale(1, 0.6),
+			ClipsDescendants = true,
 			ThemeTag = {
 				BackgroundColor3 = "DropdownHolder",
 			},
@@ -5796,14 +5868,13 @@ ElementsTable.Dropdown = (function()
 			local searchHeight = Dropdown.Search and 38 or 0
 			local innerMargins = 10
 			local estimatedContent = (visibleCount > 0) and (visibleCount * itemHeight + (visibleCount - 1) * padding + innerMargins + searchHeight) or (innerMargins + searchHeight)
-			local maxHeight = 392
-			local targetHeight = math.min(estimatedContent, maxHeight)
+			local maxHeight = 260
+			local minHeight = Dropdown.Search and 76 or 44
+			local targetHeight = math.clamp(estimatedContent, minHeight, maxHeight)
 			
 			local canvasWidth = math.max(170, ListSizeX > 0 and (ListSizeX + 20) or 170)
 			DropdownHolderCanvas.Size = UDim2.fromOffset(canvasWidth, targetHeight)
-			
-			local many = visibleCount > 10
-			DropdownHolderFrame.Size = UDim2.fromScale(1, many and (targetHeight / math.max(targetHeight, 1)) or 1)
+			DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
 		end
 
 		local function RecalculateCanvasSize()
@@ -5851,23 +5922,22 @@ ElementsTable.Dropdown = (function()
 			RecalculateListPosition()
 		end)
 
-		Creator.AddSignal(DropdownInner.MouseButton1Click, function()
+		local lastDropdownToggle = 0
+		local function ToggleDropdownState()
+			local now = os.clock()
+			if now - lastDropdownToggle < 0.14 then
+				return
+			end
+			lastDropdownToggle = now
+			Dropdown.LastToggleTime = now
 			if Dropdown.Opened then
 				Dropdown:Close()
 			else
 				Dropdown:Open()
 			end
-		end)
+		end
 
-		Creator.AddSignal(DropdownInner.InputBegan, function(Input)
-			if Input.UserInputType == Enum.UserInputType.Touch then
-				if Dropdown.Opened then
-					Dropdown:Close()
-				else
-					Dropdown:Open()
-				end
-			end
-		end)
+		Creator.AddSignal(DropdownInner.Activated, ToggleDropdownState)
 
 		Creator.AddSignal(DropdownDisplay:GetPropertyChangedSignal("Text"), function()
 			for _, Element in next, DropdownScrollFrame:GetChildren() do
@@ -5880,6 +5950,12 @@ ElementsTable.Dropdown = (function()
 		end)
 
 		Creator.AddSignal(UserInputService.InputBegan, function(Input)
+			if not Dropdown.Opened then
+				return
+			end
+			if os.clock() - (Dropdown.LastToggleTime or 0) < 0.14 then
+				return
+			end
 			if
 				Input.UserInputType == Enum.UserInputType.MouseButton1
 				or Input.UserInputType == Enum.UserInputType.Touch
@@ -5919,11 +5995,15 @@ ElementsTable.Dropdown = (function()
 			RecalculateListSize()
 			RecalculateCanvasSize()
 			task.wait()
-			TweenService:Create(
-				DropdownHolderFrame,
-				TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-				{ Size = UDim2.fromScale(1, 1) }
-			):Play()
+			if Library:IsBulkApplying() then
+				DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
+			else
+				TweenService:Create(
+					DropdownHolderFrame,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+					{ Size = UDim2.fromScale(1, 1) }
+				):Play()
+			end
 			TweenService:Create(
 				DropdownIco,
 				TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
@@ -6161,6 +6241,7 @@ ElementsTable.Dropdown = (function()
 		end
 
 		function Dropdown:SetValue(Val)
+			Library:MarkOptionWrite()
 			if Dropdown.Multi then
 				local nTable = {}
 
@@ -6584,6 +6665,7 @@ ElementsTable.Slider = (function()
 		end
 
 		function Slider:SetValue(Value)
+			Library:MarkOptionWrite()
 			self.Value = Library:Round(math.clamp(Value, Slider.Min, Slider.Max), Slider.Rounding)
 			SliderDot.Position = UDim2.new((self.Value - Slider.Min) / (Slider.Max - Slider.Min), -7, 0.5, 0)
 			SliderFill.Size = UDim2.fromScale((self.Value - Slider.Min) / (Slider.Max - Slider.Min), 1)
@@ -6713,6 +6795,7 @@ ElementsTable.Keybind = (function()
 		end
 
 		function Keybind:SetValue(Key, Mode)
+			Library:MarkOptionWrite()
 			Key = Key or Keybind.Key
 			Mode = Mode or Keybind.Mode
 
@@ -7278,6 +7361,7 @@ ElementsTable.Colorpicker = (function()
 		end
 
 		function Colorpicker:SetValue(HSV, Transparency)
+			Library:MarkOptionWrite()
 			local Color = Color3.fromHSV(HSV[1], HSV[2], HSV[3])
 
 			Colorpicker.Transparency = Transparency or 0
@@ -7286,6 +7370,7 @@ ElementsTable.Colorpicker = (function()
 		end
 
 		function Colorpicker:SetValueRGB(Color, Transparency)
+			Library:MarkOptionWrite()
 			Colorpicker.Transparency = Transparency or 0
 			Colorpicker:SetHSVFromRGB(Color)
 			Colorpicker:Display()
@@ -7353,6 +7438,7 @@ ElementsTable.Input = (function()
 		local Box = Textbox.Input
 
 		function Input:SetValue(Text)
+			Library:MarkOptionWrite()
 			if Config.MaxLength and #Text > Config.MaxLength then
 				Text = Text:sub(1, Config.MaxLength)
 			end
