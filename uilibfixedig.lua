@@ -8,7 +8,7 @@
 ╚═╝░░░░░╚══════╝░╚═════╝░╚══════╝╚═╝░░╚══╝░░░╚═╝░░░  ╚═╝░░░░░╚══════╝░╚═════╝░╚═════╝░
 
 A modified version of Fluent
--- modified by dead / and the original fluent plus owner 
+https://fluent-pl.us
 
 ]]
 
@@ -2568,24 +2568,24 @@ Components.Section = (function()
 		local Section = {}
 
 		Section.Layout = New("UIListLayout", {
-			Padding = UDim.new(0, 5),
+			Padding = UDim.new(0, 6),
 		})
 
 		Section.Container = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 26),
-			Position = UDim2.fromOffset(0, 24),
+			Position = UDim2.fromOffset(0, 34),
 			BackgroundTransparency = 1,
 		}, {
 			Section.Layout,
 		})
 
-		local SectionHeader = New("Frame", {
-			Size = UDim2.new(1, -16, 0, 18),
-			Position = UDim2.fromOffset(0, 2),
+		local HeaderContent = New("Frame", {
 			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -28, 1, 0),
+			Position = UDim2.fromOffset(14, 0),
 		}, {
 			New("UIListLayout", {
-				Padding = UDim.new(0, 5),
+				Padding = UDim.new(0, 6),
 				FillDirection = Enum.FillDirection.Horizontal,
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
@@ -2596,7 +2596,7 @@ Components.Section = (function()
 				BackgroundTransparency = 1,
 				LayoutOrder = 1,
 				ThemeTag = {
-					ImageColor3 = "Text",
+					ImageColor3 = "Accent",
 				},
 			}) or nil,
 			New("TextLabel", {
@@ -2604,7 +2604,7 @@ Components.Section = (function()
 				Text = Title,
 				TextTransparency = 0,
 				FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
-				TextSize = 18,
+				TextSize = 16,
 				TextXAlignment = "Left",
 				TextYAlignment = "Center",
 				Size = UDim2.fromScale(0, 1),
@@ -2617,9 +2617,43 @@ Components.Section = (function()
 			}),
 		})
 
+		local SectionHeader = New("Frame", {
+			Size = UDim2.new(1, -10, 0, 28),
+			Position = UDim2.fromOffset(5, 0),
+			BackgroundTransparency = 0.12,
+			ThemeTag = {
+				BackgroundColor3 = "Element",
+			},
+		}, {
+			New("UICorner", {
+				CornerRadius = UDim.new(0, 8),
+			}),
+			New("UIStroke", {
+				Transparency = 0.45,
+				Thickness = 1,
+				ThemeTag = {
+					Color = "ElementBorder",
+				},
+			}),
+			New("Frame", {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 7, 0.5, 0),
+				Size = UDim2.fromOffset(3, 14),
+				BorderSizePixel = 0,
+				ThemeTag = {
+					BackgroundColor3 = "Accent",
+				},
+			}, {
+				New("UICorner", {
+					CornerRadius = UDim.new(1, 0),
+				}),
+			}),
+			HeaderContent,
+		})
+
 		Section.Root = New("Frame", {
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 26),
+			Size = UDim2.new(1, 0, 0, 36),
 			LayoutOrder = 7,
 			Parent = Parent,
 		}, {
@@ -2629,9 +2663,8 @@ Components.Section = (function()
 
 		Creator.AddSignal(Section.Layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
 			Section.Container.Size = UDim2.new(1, 0, 0, Section.Layout.AbsoluteContentSize.Y)
-			Section.Root.Size = UDim2.new(1, 0, 0, Section.Layout.AbsoluteContentSize.Y + 25)
+			Section.Root.Size = UDim2.new(1, 0, 0, Section.Layout.AbsoluteContentSize.Y + 34)
 		end)
-
 
 		if Library.Window and Library.Window.RegisterElement then
 			Library.Window.RegisterElement(Section.Root, Title, "Section")
@@ -9871,46 +9904,33 @@ function Library:CreateMinimizer(Config)
 
 
 	local iconAsset = "rbxassetid://10734897102"
+	local iconIsCoverImage = false
+	local rawIcon = Config.Icon
 
-
-	if type(Config.Icon) == "string" and Config.Icon ~= "" then
-
-
+	if type(rawIcon) == "string" and rawIcon ~= "" then
 		pcall(function()
-
-
-			local resolved = Library:GetIcon(Config.Icon)
-
-
+			local resolved = Library:GetIcon(rawIcon)
 			if resolved then
-
-
 				iconAsset = resolved
-
-
-			elseif string.match(Config.Icon, "^rbxassetid://%d+$") then
-
-
-				iconAsset = Config.Icon
-
-
+			elseif string.match(rawIcon, "^rbxassetid://%d+$") or string.match(rawIcon, "^https?://") then
+				iconAsset = rawIcon
 			end
-
-
 		end)
-
-
+		iconIsCoverImage = string.match(iconAsset, "^rbxassetid://%d+$") ~= nil or string.match(iconAsset, "^https?://") ~= nil
 	end
 
-
-
-
-
 	local useAcrylic = (Config.Acrylic == true)
-
-
-
-
+	local minimizerMode = string.lower(tostring(Config.MinimizerMode or Config.Shape or "circle"))
+	if minimizerMode == "cercle" then
+		minimizerMode = "circle"
+	elseif minimizerMode == "seqaure" then
+		minimizerMode = "square"
+	elseif minimizerMode == "rounded" then
+		minimizerMode = "square"
+	end
+	if minimizerMode ~= "circle" and minimizerMode ~= "square" then
+		minimizerMode = "circle"
+	end
 
 	local cornerRadius = tonumber(Config.Corner)
 
@@ -9920,6 +9940,13 @@ function Library:CreateMinimizer(Config)
 
 	local draggableWhole = (Config.Draggable == true)
 
+	local function resolveCorner(isDesktop)
+		if minimizerMode == "circle" then
+			return UDim.new(1, 0)
+		end
+		return UDim.new(0, cornerRadius or (isDesktop and 12 or 10))
+	end
+
 
 
 
@@ -9928,7 +9955,7 @@ function Library:CreateMinimizer(Config)
 
 
 	local function createButton(isDesktop)
-
+		local resolvedCorner = resolveCorner(isDesktop)
 
 		return New("TextButton", {
 
@@ -9945,7 +9972,7 @@ function Library:CreateMinimizer(Config)
 			BackgroundTransparency = backgroundTransparency or 0,
 
 
-			AutoButtonColor = true,
+			AutoButtonColor = false,
 
 
 			ThemeTag = {
@@ -9960,7 +9987,7 @@ function Library:CreateMinimizer(Config)
 		}, {
 
 
-			New("UICorner", { CornerRadius = UDim.new(0, cornerRadius or (isDesktop and 14 or 12)) }),
+			New("UICorner", { CornerRadius = resolvedCorner }),
 
 
 			New("UIStroke", {
@@ -9969,7 +9996,7 @@ function Library:CreateMinimizer(Config)
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 
 
-				Transparency = isDesktop and 0.6 or 0.7,
+				Transparency = isDesktop and 0.35 or 0.45,
 
 
 				Thickness = isDesktop and 2 or 1.5,
@@ -9978,16 +10005,35 @@ function Library:CreateMinimizer(Config)
 				ThemeTag = {
 
 
-					Color = "ElementBorder",
+					Color = "Accent",
 
 
 				},
 
 
 			}),
-
-
-			New("ImageLabel", {
+			iconIsCoverImage and New("ImageLabel", {
+				Name = "Icon",
+				Image = iconAsset,
+				Size = UDim2.fromScale(1, 1),
+				Position = UDim2.fromScale(0.5, 0.5),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				ScaleType = Enum.ScaleType.Crop,
+				BackgroundTransparency = 1,
+				ImageTransparency = 0,
+			}, {
+				New("UICorner", { CornerRadius = resolvedCorner }),
+				New("Frame", {
+					BackgroundTransparency = 0.72,
+					BorderSizePixel = 0,
+					Size = UDim2.fromScale(1, 1),
+					ThemeTag = {
+						BackgroundColor3 = "Element",
+					},
+				}, {
+					New("UICorner", { CornerRadius = resolvedCorner }),
+				}),
+			}) or New("ImageLabel", {
 
 
 				Name = "Icon",
@@ -9996,7 +10042,7 @@ function Library:CreateMinimizer(Config)
 				Image = iconAsset,
 
 
-				Size = UDim2.new(0.8, 0, 0.8, 0),
+				Size = UDim2.new(0.74, 0, 0.74, 0),
 
 
 				Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -10023,14 +10069,21 @@ function Library:CreateMinimizer(Config)
 				New("UIAspectRatioConstraint", { AspectRatio = 1, AspectType = Enum.AspectType.FitWithinMaxSize }),
 
 
-				New("UICorner", { CornerRadius = UDim.new(0, 0) })
+				New("UICorner", { CornerRadius = resolvedCorner })
 
 
 			}),
-
-
-
-
+			New("Frame", {
+				Name = "AccentOverlay",
+				BackgroundTransparency = 0.88,
+				BorderSizePixel = 0,
+				Size = UDim2.fromScale(1, 1),
+				ThemeTag = {
+					BackgroundColor3 = "Accent",
+				},
+			}, {
+				New("UICorner", { CornerRadius = resolvedCorner }),
+			}),
 
 		})
 
@@ -10125,7 +10178,7 @@ function Library:CreateMinimizer(Config)
 
 
 
-		local desiredCorner = UDim.new(0, cornerRadius or 0)
+		local desiredCorner = resolveCorner(not isMobile)
 
 
 		pcall(function()
@@ -10150,6 +10203,7 @@ function Library:CreateMinimizer(Config)
 
 
 					descendant.AnchorPoint = Vector2.new(0.5, 0.5)
+					pcall(function() descendant.ScaleType = Enum.ScaleType.Crop end)
 
 
 				end
@@ -10307,6 +10361,18 @@ function Library:CreateMinimizer(Config)
 
 
 
+
+		AddSignal(button.MouseEnter, function()
+			Creator.Tween(button, {0.18, Enum.EasingStyle.Quad}, {
+				BackgroundTransparency = math.max((backgroundTransparency or 0) - 0.08, 0),
+			})
+		end)
+
+		AddSignal(button.MouseLeave, function()
+			Creator.Tween(button, {0.18, Enum.EasingStyle.Quad}, {
+				BackgroundTransparency = backgroundTransparency or 0,
+			})
+		end)
 
 		AddSignal(button.MouseButton1Click, function()
 
