@@ -26,6 +26,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local Mobile = not RunService:IsStudio() and table.find({Enum.Platform.IOS, Enum.Platform.Android}, UserInputService:GetPlatform()) ~= nil
 
+local UISectionAccent = Color3.fromRGB(220, 58, 58)
+
+
 local fischbypass
 
 if game.GameId == 5750914919 then
@@ -2277,6 +2280,125 @@ function Acrylic.init()
 	Acrylic.Enable()
 end
 
+
+local function DisableGuiInteractions(root)
+	if not root then return end
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("GuiButton") then
+			obj.AutoButtonColor = false
+			obj.Active = false
+			obj.Selectable = false
+		elseif obj:IsA("TextBox") then
+			obj.ClearTextOnFocus = false
+			obj.Active = false
+			obj.Selectable = false
+			obj.TextEditable = false
+		end
+	end
+	if root:IsA("GuiButton") then
+		root.AutoButtonColor = false
+		root.Active = false
+		root.Selectable = false
+	end
+end
+
+local function CreateLockOverlay(target, opts)
+	if not target or target:FindFirstChild("__LockedOverlay") then
+		return target and target:FindFirstChild("__LockedOverlay")
+	end
+	opts = opts or {}
+	local New = Creator.New
+	local overlay = New("TextButton", {
+		Name = "__LockedOverlay",
+		Text = "",
+		AutoButtonColor = false,
+		Modal = true,
+		Active = true,
+		Selectable = false,
+		ZIndex = (opts.ZIndex or ((target.ZIndex or 1) + 20)),
+		BackgroundTransparency = opts.BackgroundTransparency or 0.18,
+		Size = opts.Size or UDim2.fromScale(1, 1),
+		Position = opts.Position or UDim2.fromScale(0, 0),
+		Visible = true,
+		ThemeTag = {
+			BackgroundColor3 = "Element",
+		},
+	}, {
+		New("UICorner", {
+			CornerRadius = opts.CornerRadius or UDim.new(0, 6),
+		}),
+		New("UIStroke", {
+			Transparency = 0.45,
+			Thickness = 1,
+			Color = UISectionAccent,
+		}),
+		New("Frame", {
+			BackgroundTransparency = 0.7,
+			Size = UDim2.new(1, -8, 0, 28),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			ZIndex = (opts.ZIndex or ((target.ZIndex or 1) + 20)) + 1,
+			ThemeTag = {
+				BackgroundColor3 = "DropdownHolder",
+			},
+		}, {
+			New("UICorner", {
+				CornerRadius = UDim.new(0, 6),
+			}),
+			New("TextLabel", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 1),
+				Text = opts.Text or "[ 🔒 Locked ]",
+				FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal),
+				TextSize = 13,
+				ZIndex = (opts.ZIndex or ((target.ZIndex or 1) + 20)) + 2,
+				ThemeTag = {
+					TextColor3 = "Text",
+				},
+			}),
+		}),
+	})
+	overlay.Parent = target
+	return overlay
+end
+
+local function ApplyLockedToElement(result, label)
+	if not result then return end
+	local root = result.Frame or (result.Elements and result.Elements.Frame) or result.Root
+	if not root then return end
+	DisableGuiInteractions(root)
+	CreateLockOverlay(root, {
+		Text = label or "[ 🔒 Locked ]",
+		CornerRadius = UDim.new(0, 4),
+		BackgroundTransparency = 0.2,
+	})
+end
+
+local function ApplyLockedToSection(sectionObject)
+	if not sectionObject or not sectionObject.Root or not sectionObject.Container then return end
+	DisableGuiInteractions(sectionObject.Container)
+	local overlay = CreateLockOverlay(sectionObject.Container, {
+		Text = "[ 🔒 Locked ]",
+		CornerRadius = UDim.new(0, 8),
+		BackgroundTransparency = 0.12,
+	})
+	local function resize()
+		overlay.Size = UDim2.new(1, 0, 0, math.max(sectionObject.Container.AbsoluteSize.Y, 20))
+	end
+	resize()
+	sectionObject.Container:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
+end
+
+local function ApplyLockedToTab(tabObject)
+	if not tabObject or not tabObject.Frame then return end
+	DisableGuiInteractions(tabObject.Frame)
+	CreateLockOverlay(tabObject.Frame, {
+		Text = "[ 🔒 Locked ]",
+		CornerRadius = UDim.new(0, 6),
+		BackgroundTransparency = 0.18,
+	})
+end
+
 local Components = {
 	Assets = {
 		Close = "rbxassetid://9886659671",
@@ -2595,9 +2717,7 @@ Components.Section = (function()
 				Size = UDim2.fromOffset(16, 16),
 				BackgroundTransparency = 1,
 				LayoutOrder = 1,
-				ThemeTag = {
-					ImageColor3 = "Accent",
-				},
+				ImageColor3 = UISectionAccent,
 			}) or nil,
 			New("TextLabel", {
 				RichText = true,
@@ -2640,9 +2760,7 @@ Components.Section = (function()
 				Position = UDim2.new(0, 7, 0.5, 0),
 				Size = UDim2.fromOffset(3, 14),
 				BorderSizePixel = 0,
-				ThemeTag = {
-					BackgroundColor3 = "Accent",
-				},
+				BackgroundColor3 = UISectionAccent,
 			}, {
 				New("UICorner", {
 					CornerRadius = UDim.new(1, 0),
@@ -2660,6 +2778,8 @@ Components.Section = (function()
 			SectionHeader,
 			Section.Container,
 		})
+
+		Section.Header = SectionHeader
 
 		Creator.AddSignal(Section.Layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
 			Section.Container.Size = UDim2.new(1, 0, 0, Section.Layout.AbsoluteContentSize.Y)
@@ -3103,6 +3223,12 @@ Components.Tab = (function()
 
 			function SubTab:AddSection(SectionTitle, SectionIcon)
 				local Section = { Type = "Section" }
+				local SectionConfig = type(SectionTitle) == "table" and SectionTitle or nil
+				local SectionLocked = SectionConfig and SectionConfig.Locked
+				if SectionConfig then
+					SectionIcon = SectionConfig.Icon
+					SectionTitle = SectionConfig.Title or SectionConfig.Name or "Section"
+				end
 
 				local Icon = SectionIcon
 				if not fischbypass then 
@@ -3118,8 +3244,13 @@ Components.Tab = (function()
 				local SectionFrame = Components.Section(SectionTitle, SubTab.Container, Icon)
 				Section.Container = SectionFrame.Container
 				Section.ScrollFrame = SubTab.Container
+				Section.Root = SectionFrame.Root
+				Section.Header = SectionFrame.Header
 
 				setmetatable(Section, Elements)
+				if SectionLocked then
+					ApplyLockedToSection(Section)
+				end
 				return Section
 			end
 
@@ -3248,6 +3379,12 @@ Components.Tab = (function()
 			end
 
 			local Section = { Type = "Section" }
+			local SectionConfig = type(SectionTitle) == "table" and SectionTitle or nil
+			local SectionLocked = SectionConfig and SectionConfig.Locked
+			if SectionConfig then
+				SectionIcon = SectionConfig.Icon
+				SectionTitle = SectionConfig.Title or SectionConfig.Name or "Section"
+			end
 
 			local Icon = SectionIcon
 			if not fischbypass then 
@@ -3263,8 +3400,13 @@ Components.Tab = (function()
 			local SectionFrame = Components.Section(SectionTitle, Tab.Container, Icon)
 			Section.Container = SectionFrame.Container
 			Section.ScrollFrame = Tab.Container
+			Section.Root = SectionFrame.Root
+			Section.Header = SectionFrame.Header
 
 			setmetatable(Section, Elements)
+			if SectionLocked then
+				ApplyLockedToSection(Section)
+			end
 			return Section
 		end
 
@@ -5307,6 +5449,9 @@ Components.Window = (function()
 		local TabModule = Components.Tab:Init(Window)
 		function Window:AddTab(TabConfig)
 			local tab = TabModule:New(TabConfig.Title, TabConfig.Icon, Window.TabHolder)
+			if TabConfig and TabConfig.Locked then
+				ApplyLockedToTab(tab)
+			end
 			return tab
 		end
 
@@ -8375,7 +8520,11 @@ for _, ElementComponent in pairs(ElementsTable) do
 		ElementComponent.ScrollFrame = self.ScrollFrame
 		ElementComponent.Library = Library
 
-		return ElementComponent:New(Idx, Config)
+		local result = ElementComponent:New(Idx, Config)
+		if type(Config) == "table" and Config.Locked then
+			ApplyLockedToElement(result)
+		end
+		return result
 	end
 end
 
@@ -9944,7 +10093,9 @@ function Library:CreateMinimizer(Config)
 		if minimizerMode == "circle" then
 			return UDim.new(1, 0)
 		end
-		return UDim.new(0, cornerRadius or (isDesktop and 12 or 10))
+		local squareCorner = cornerRadius or (isDesktop and 12 or 10)
+		squareCorner = math.clamp(squareCorner, 0, 14)
+		return UDim.new(0, squareCorner)
 	end
 
 
@@ -10005,7 +10156,7 @@ function Library:CreateMinimizer(Config)
 				ThemeTag = {
 
 
-					Color = "Accent",
+					Color = "ElementBorder",
 
 
 				},
@@ -10072,17 +10223,6 @@ function Library:CreateMinimizer(Config)
 				New("UICorner", { CornerRadius = resolvedCorner })
 
 
-			}),
-			New("Frame", {
-				Name = "AccentOverlay",
-				BackgroundTransparency = 0.88,
-				BorderSizePixel = 0,
-				Size = UDim2.fromScale(1, 1),
-				ThemeTag = {
-					BackgroundColor3 = "Accent",
-				},
-			}, {
-				New("UICorner", { CornerRadius = resolvedCorner }),
 			}),
 
 		})
