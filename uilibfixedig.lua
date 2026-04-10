@@ -9,7 +9,8 @@
 
 A modified version of Fluent
 https://fluent-pl.us
-
+by discart 
+edited by dead 
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -17,6 +18,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = game:GetService("Players").LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local LocalizationService = game:GetService("LocalizationService")
 local TextService = game:GetService("TextService")
 local Camera = game:GetService("Workspace").CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
@@ -788,6 +790,11 @@ local Library = {
 	Transparency = true,
 	MinimizeKeybind = nil,
 	MinimizeKey = Enum.KeyCode.LeftControl,
+	Locale = "auto",
+	ActiveLocale = "en-us",
+	Translator = nil,
+	LocalizedText = {},
+	LocalizedCleanup = {},
 }
 
 local function isMotor(value)
@@ -1783,14 +1790,30 @@ function Creator.New(Name, Properties, Children)
 	end
 
 	local originalText = Properties and Properties.Text
+	local originalPlaceholderText = Properties and Properties.PlaceholderText
 
 	for Name, Value in next, Properties or {} do
-		if Name ~= "ThemeTag" then
+		if Name ~= "ThemeTag" and Name ~= "NoAutoTranslate" and Name ~= "LocalizeContext" and Name ~= "LocalizePlaceholderContext" then
 			Object[Name] = Value
 		end
 	end
 	
-	if originalText and type(originalText) == "string" and originalText:match("<[^>]+>") then
+	if Library and Library.RegisterLocalizedObject then
+		if originalText and type(originalText) == "string" and originalText ~= "" and not (Properties and Properties.NoAutoTranslate) then
+			Library:RegisterLocalizedObject(Object, "Text", originalText, Properties and Properties.LocalizeContext, {
+				RichText = (Properties and Properties.RichText ~= false and originalText:match("<[^>]+>") ~= nil)
+			})
+		elseif originalText and type(originalText) == "string" and originalText:match("<[^>]+>") then
+			Object.Text = MiniMessageToRichText(originalText)
+			if Properties and Properties.RichText == nil then
+				Object.RichText = true
+			end
+		end
+
+		if originalPlaceholderText and type(originalPlaceholderText) == "string" and originalPlaceholderText ~= "" and not (Properties and Properties.NoAutoTranslate) then
+			Library:RegisterLocalizedObject(Object, "PlaceholderText", originalPlaceholderText, Properties and Properties.LocalizePlaceholderContext)
+		end
+	elseif originalText and type(originalText) == "string" and originalText:match("<[^>]+>") then
 		Object.Text = MiniMessageToRichText(originalText)
 		if Properties and Properties.RichText == nil then
 			Object.RichText = true
@@ -1846,6 +1869,239 @@ local GUI = New("ScreenGui", {
 })
 Library.GUI = GUI
 ProtectGui(GUI)
+
+Library.LocaleChoices = {
+	{ Label = "Auto (System)", Value = "auto" },
+	{ Label = "Arabic (ar-001)", Value = "ar-001" },
+	{ Label = "Chinese Simplified (zh-cn)", Value = "zh-cn" },
+	{ Label = "Chinese Traditional (zh-tw)", Value = "zh-tw" },
+	{ Label = "Dutch (nl-nl)", Value = "nl-nl" },
+	{ Label = "English (en-us)", Value = "en-us" },
+	{ Label = "French (fr-fr)", Value = "fr-fr" },
+	{ Label = "German (de-de)", Value = "de-de" },
+	{ Label = "Hindi (hi-in)", Value = "hi-in" },
+	{ Label = "Indonesian (id-id)", Value = "id-id" },
+	{ Label = "Italian (it-it)", Value = "it-it" },
+	{ Label = "Japanese (ja-jp)", Value = "ja-jp" },
+	{ Label = "Korean (ko-kr)", Value = "ko-kr" },
+	{ Label = "Polish (pl-pl)", Value = "pl-pl" },
+	{ Label = "Portuguese (pt-br)", Value = "pt-br" },
+	{ Label = "Russian (ru-ru)", Value = "ru-ru" },
+	{ Label = "Spanish (es-es)", Value = "es-es" },
+	{ Label = "Spanish LATAM (es-419)", Value = "es-419" },
+	{ Label = "Thai (th-th)", Value = "th-th" },
+	{ Label = "Turkish (tr-tr)", Value = "tr-tr" },
+	{ Label = "Ukrainian (uk-ua)", Value = "uk-ua" },
+	{ Label = "Vietnamese (vi-vn)", Value = "vi-vn" },
+}
+
+function Library:NormalizeLocaleId(localeId)
+	if localeId == nil then
+		return nil
+	end
+	if type(localeId) ~= "string" then
+		localeId = tostring(localeId)
+	end
+	localeId = localeId:gsub("_", "-"):lower()
+	if localeId == "" then
+		return nil
+	end
+	return localeId
+end
+
+function Library:GetLocaleChoices()
+	local values = {}
+	for _, entry in ipairs(self.LocaleChoices or {}) do
+		table.insert(values, entry.Label)
+	end
+	return values
+end
+
+function Library:GetLocaleLabel(localeId)
+	local normalized = self:NormalizeLocaleId(localeId) or "auto"
+	for _, entry in ipairs(self.LocaleChoices or {}) do
+		if entry.Value == normalized then
+			return entry.Label
+		end
+	end
+	return "English (en-us)"
+end
+
+function Library:GetLocaleValue(selection)
+	if type(selection) == "string" then
+		for _, entry in ipairs(self.LocaleChoices or {}) do
+			if entry.Label == selection then
+				return entry.Value
+			end
+		end
+	end
+	local normalized = self:NormalizeLocaleId(selection)
+	return normalized or "auto"
+end
+
+function Library:GetDefaultLocale()
+	local candidates = {}
+	pcall(function() table.insert(candidates, LocalizationService.RobloxLocaleId) end)
+	pcall(function() table.insert(candidates, LocalizationService.SystemLocaleId) end)
+	pcall(function()
+		if LocalPlayer and LocalPlayer.LocaleId then
+			table.insert(candidates, LocalPlayer.LocaleId)
+		end
+	end)
+	for _, candidate in ipairs(candidates) do
+		local normalized = self:NormalizeLocaleId(candidate)
+		if normalized and normalized ~= "" then
+			return normalized
+		end
+	end
+	return "en-us"
+end
+
+function Library:ResolveLocale(localeId)
+	local normalized = self:GetLocaleValue(localeId or self.Locale or "auto")
+	if normalized == "auto" then
+		return self:GetDefaultLocale()
+	end
+	return normalized
+end
+
+function Library:ShouldAutoTranslate(text)
+	if type(text) ~= "string" then
+		return false
+	end
+	if text == "" or text:match("^%s*$") then
+		return false
+	end
+	if text:match("^rbxassetid://") or text:match("^https?://") then
+		return false
+	end
+	if text:match("<[^>]+>") then
+		return false
+	end
+	if text:match("^#?[%x]+$") and #text <= 8 then
+		return false
+	end
+	if not text:match("[%a]") then
+		return false
+	end
+	return true
+end
+
+function Library:_connectLocalizationCleanup(object)
+	if not object or not object.Destroying or self.LocalizedCleanup[object] then
+		return
+	end
+	self.LocalizedCleanup[object] = object.Destroying:Connect(function()
+		if self.LocalizedCleanup[object] then
+			pcall(function() self.LocalizedCleanup[object]:Disconnect() end)
+			self.LocalizedCleanup[object] = nil
+		end
+		self.LocalizedText[object] = nil
+	end)
+end
+
+function Library:_translateText(sourceText, context)
+	if not self:ShouldAutoTranslate(sourceText) then
+		return sourceText
+	end
+	if not self.Translator then
+		return sourceText
+	end
+	for _, ctx in ipairs({ context, sourceText, "" }) do
+		local ok, translated = pcall(function()
+			return self.Translator:Translate(ctx, sourceText)
+		end)
+		if ok and type(translated) == "string" and translated ~= "" then
+			return translated
+		end
+	end
+	return sourceText
+end
+
+function Library:ApplyLocalizedEntry(entry)
+	if not entry or not entry.Object or not entry.Property then
+		return
+	end
+	local text = entry.Source or ""
+	text = self:_translateText(text, entry.Context)
+	if entry.RichText and self.MiniMessageToRichText then
+		text = self.MiniMessageToRichText(text)
+		pcall(function() entry.Object.RichText = true end)
+	end
+	pcall(function() entry.Object[entry.Property] = text end)
+	return text
+end
+
+function Library:RegisterLocalizedObject(object, property, sourceText, context, options)
+	if not object or not property then
+		return sourceText
+	end
+	if type(sourceText) ~= "string" then
+		pcall(function() object[property] = sourceText end)
+		return sourceText
+	end
+	options = options or {}
+	self.LocalizedText[object] = self.LocalizedText[object] or {}
+	self.LocalizedText[object][property] = {
+		Object = object,
+		Property = property,
+		Source = sourceText,
+		Context = context,
+		RichText = options.RichText == true,
+	}
+	self:_connectLocalizationCleanup(object)
+	return self:ApplyLocalizedEntry(self.LocalizedText[object][property])
+end
+
+function Library:SetLocalizedText(object, text, context, options)
+	if not object then
+		return text
+	end
+	options = options or {}
+	if type(text) == "string" then
+		options.RichText = options.RichText == true or text:match("<[^>]+>") ~= nil
+		return self:RegisterLocalizedObject(object, "Text", text, context, options)
+	end
+	pcall(function() object.Text = text end)
+	return text
+end
+
+function Library:SetLocalizedPlaceholder(object, text, context)
+	if not object then
+		return text
+	end
+	if type(text) == "string" then
+		return self:RegisterLocalizedObject(object, "PlaceholderText", text, context)
+	end
+	pcall(function() object.PlaceholderText = text end)
+	return text
+end
+
+function Library:RefreshLocalizedText()
+	for _, properties in pairs(self.LocalizedText or {}) do
+		for _, entry in pairs(properties) do
+			self:ApplyLocalizedEntry(entry)
+		end
+	end
+end
+
+function Library:SetLocale(localeId)
+	self.Locale = self:GetLocaleValue(localeId or self.Locale or "auto")
+	local resolvedLocale = self:ResolveLocale(self.Locale)
+	self.ActiveLocale = resolvedLocale
+	local ok, translator = pcall(function()
+		return LocalizationService:GetTranslatorForLocaleAsync(resolvedLocale)
+	end)
+	self.Translator = ok and translator or nil
+	self:RefreshLocalizedText()
+	return self.Translator ~= nil, resolvedLocale
+end
+
+Library._LocaleInitTask = task.defer(function()
+	pcall(function()
+		Library:SetLocale(Library.Locale or "auto")
+	end)
+end)
 
 Library._BulkWriteBurst = 0
 Library._BulkWriteLast = 0
@@ -2533,7 +2789,7 @@ Components.Element = (function()
 		})
 
 		function Element:SetTitle(Set)
-			Element.TitleLabel.Text = Set
+			Library:SetLocalizedText(Element.TitleLabel, Set, "element.title")
 			local hasTitle = (Set ~= nil and Set ~= "")
 			Element.Header.Visible = hasTitle
 
@@ -2618,7 +2874,7 @@ Components.Element = (function()
 			else
 				Element.DescLabel.Visible = true
 			end
-			Element.DescLabel.Text = Set
+			Library:SetLocalizedText(Element.DescLabel, Set, "element.description")
 			if Library.Window and Library.Window.AllElements and Library.Window.AllElements[Element.Frame] then
 				Library.Window.AllElements[Element.Frame].description = Set
 			elseif Library.Windows and #Library.Windows > 0 then
@@ -3357,16 +3613,37 @@ Components.Tab = (function()
 					end
 				end)
 			else
+				local IntroDirection = Direction == 0 and 1 or Direction
 				for idx, Container in next, self.SubTabContainers do
 					if Container then
-						Container.Visible = (idx == SubTabIndex)
-						Container.Position = UDim2.fromOffset(0, 0)
-						Container.GroupTransparency = 0
+						local isTarget = (idx == SubTabIndex)
+						Container.Visible = isTarget
 						if self.SubTabs[idx] then
 							pcall(function()
-								self.SubTabs[idx].XMotor:setGoal(Instant(0))
-								self.SubTabs[idx].TransparencyMotor:setGoal(Instant(0))
+								if isTarget then
+									local introOffset = math.max(12, SlideDistance * 0.4)
+									Container.Position = UDim2.fromOffset(IntroDirection * introOffset, 0)
+									Container.GroupTransparency = 1
+									self.SubTabs[idx].XMotor:setGoal(Instant(IntroDirection * introOffset))
+									self.SubTabs[idx].TransparencyMotor:setGoal(Instant(1))
+									task.defer(function()
+										if self.SelectedSubTab == SubTabIndex and self.SubTabs[idx] then
+											pcall(function()
+												self.SubTabs[idx].XMotor:setGoal(Spring(0, { frequency = 5, dampingRatio = 0.8 }))
+												self.SubTabs[idx].TransparencyMotor:setGoal(Spring(0, { frequency = 5, dampingRatio = 0.8 }))
+											end)
+										end
+									end)
+								else
+									Container.Position = UDim2.fromOffset(0, 0)
+									Container.GroupTransparency = 0
+									self.SubTabs[idx].XMotor:setGoal(Instant(0))
+									self.SubTabs[idx].TransparencyMotor:setGoal(Instant(0))
+								end
 							end)
+						else
+							Container.Position = UDim2.fromOffset(0, 0)
+							Container.GroupTransparency = 0
 						end
 					end
 				end
@@ -3445,7 +3722,7 @@ Components.Tab = (function()
 		TabModule.Tabs[Tab].SetTransparency(0.89)
 		TabModule.Tabs[Tab].Selected = true
 
-		Window.TabDisplay.Text = TabModule.Tabs[Tab].Name
+		Library:SetLocalizedText(Window.TabDisplay, TabModule.Tabs[Tab].Name, "window.tab_display")
 		Window.SelectorPosMotor:setGoal(Spring(TabModule:GetCurrentTabPos(), { frequency = 6 }))
 
 		if PreviousTab > 0 and PreviousTab ~= Tab and TabModule.Tabs[PreviousTab] and TabModule.Tabs[Tab] then
@@ -3527,16 +3804,37 @@ Components.Tab = (function()
 				end
 			end)
 		else
+			local IntroDirection = Direction == 0 and 1 or Direction
 			for idx, Container in next, TabModule.Containers do
 				if Container then
-					Container.Visible = (idx == Tab)
-					Container.Position = UDim2.fromOffset(0, 0)
-					Container.GroupTransparency = 0
+					local isTarget = (idx == Tab)
+					Container.Visible = isTarget
 					if TabModule.Tabs[idx] and TabModule.Tabs[idx].ContainerXMotor and TabModule.Tabs[idx].ContainerTransparencyMotor then
 						pcall(function()
-							TabModule.Tabs[idx].ContainerXMotor:setGoal(Instant(0))
-							TabModule.Tabs[idx].ContainerTransparencyMotor:setGoal(Instant(0))
+							if isTarget then
+								local introOffset = math.max(14, SlideDistance * 0.45)
+								Container.Position = UDim2.fromOffset(IntroDirection * introOffset, 0)
+								Container.GroupTransparency = 1
+								TabModule.Tabs[idx].ContainerXMotor:setGoal(Instant(IntroDirection * introOffset))
+								TabModule.Tabs[idx].ContainerTransparencyMotor:setGoal(Instant(1))
+								task.defer(function()
+									if TabModule.SelectedTab == Tab and TabModule.Tabs[idx] then
+										pcall(function()
+											TabModule.Tabs[idx].ContainerXMotor:setGoal(Spring(0, { frequency = 5, dampingRatio = 0.8 }))
+											TabModule.Tabs[idx].ContainerTransparencyMotor:setGoal(Spring(0, { frequency = 5, dampingRatio = 0.8 }))
+										end)
+									end
+								end)
+							else
+								Container.Position = UDim2.fromOffset(0, 0)
+								Container.GroupTransparency = 0
+								TabModule.Tabs[idx].ContainerXMotor:setGoal(Instant(0))
+								TabModule.Tabs[idx].ContainerTransparencyMotor:setGoal(Instant(0))
+							end
 						end)
+					else
+						Container.Position = UDim2.fromOffset(0, 0)
+						Container.GroupTransparency = 0
 					end
 				end
 			end
@@ -3757,7 +4055,7 @@ Components.Dialog = (function()
 			Callback = Callback or function() end
 
 			local Button = Components.Button("", NewDialog.ButtonHolder, true)
-			Button.Title.Text = Title
+			Library:SetLocalizedText(Button.Title, Title, "dialog.button")
 
 			for _, Btn in next, NewDialog.ButtonHolder:GetChildren() do
 				if Btn:IsA("TextButton") then
@@ -5391,7 +5689,7 @@ Components.Window = (function()
 		local DialogModule = Components.Dialog:Init(Window)
 		function Window:Dialog(Config)
 			local Dialog = DialogModule:Create()
-			Dialog.Title.Text = Config.Title
+			Library:SetLocalizedText(Dialog.Title, Config.Title, "dialog.title")
 
 			local ContentHolder = New("ScrollingFrame", {
 				BackgroundTransparency = 1,
@@ -7136,7 +7434,7 @@ ElementsTable.Colorpicker = (function()
 
 		local function CreateColorDialog()
 			local Dialog = Components.Dialog:Create()
-			Dialog.Title.Text = Colorpicker.Title
+			Library:SetLocalizedText(Dialog.Title, Colorpicker.Title, "colorpicker.title")
 			Dialog.Root.Size = UDim2.fromOffset(430, 330)
 
 			local Hue, Sat, Vib = Colorpicker.Hue, Colorpicker.Sat, Colorpicker.Vib
@@ -8931,7 +9229,7 @@ local SaveManager = {} do
 		self:SetIgnoreIndexes({ 
 
 
-			"InterfaceTheme", "AcrylicToggle", "TransparentToggle", "MenuKeybind"
+			"InterfaceTheme", "InterfaceLocale", "AcrylicToggle", "TransparentToggle", "WindowTransparency", "MenuKeybind"
 
 
 		})
@@ -9512,145 +9810,94 @@ end
 
 local InterfaceManager = {} do
 
-
 	InterfaceManager.Folder = "FluentSettings"
-
-
 	InterfaceManager.Settings = {
-
-
+		Theme = "Dark",
 		Acrylic = true,
-
-
 		Transparency = true,
-
-
-		MenuKeybind = "M"
-
-
+		WindowTransparency = 1,
+		MenuKeybind = "M",
+		Locale = "auto"
 	}
 
-
-
-
+	InterfaceManager.LocaleValues = (Library.GetLocaleChoices and Library:GetLocaleChoices()) or {
+		"Auto (System)",
+		"Arabic (ar-001)",
+		"Chinese Simplified (zh-cn)",
+		"Chinese Traditional (zh-tw)",
+		"Dutch (nl-nl)",
+		"English (en-us)",
+		"French (fr-fr)",
+		"German (de-de)",
+		"Hindi (hi-in)",
+		"Indonesian (id-id)",
+		"Italian (it-it)",
+		"Japanese (ja-jp)",
+		"Korean (ko-kr)",
+		"Polish (pl-pl)",
+		"Portuguese (pt-br)",
+		"Russian (ru-ru)",
+		"Spanish (es-es)",
+		"Spanish LATAM (es-419)",
+		"Thai (th-th)",
+		"Turkish (tr-tr)",
+		"Ukrainian (uk-ua)",
+		"Vietnamese (vi-vn)",
+	}
 
 	function InterfaceManager:SetTheme(name)
-
-
 		InterfaceManager.Settings.Theme = name
-
-
 	end
-
-
-
-
 
 	function InterfaceManager:SetFolder(folder)
-
-
-		self.Folder = folder;
-
-
+		self.Folder = folder
 		self:BuildFolderTree()
-
-
 	end
-
-
-
-
 
 	function InterfaceManager:SetLibrary(library)
-
-
 		self.Library = library
-
-
 	end
 
+	function InterfaceManager:GetLocaleValue(selection)
+		if self.Library and self.Library.GetLocaleValue then
+			return self.Library:GetLocaleValue(selection)
+		end
+		return tostring(selection or "auto")
+	end
 
-
-
+	function InterfaceManager:GetLocaleLabel(localeId)
+		if self.Library and self.Library.GetLocaleLabel then
+			return self.Library:GetLocaleLabel(localeId)
+		end
+		return tostring(localeId or "auto")
+	end
 
 	function InterfaceManager:BuildFolderTree()
-
-
 		local paths = {}
 
-
-
-
-
 		local parts = self.Folder:split("/")
-
-
 		for idx = 1, #parts do
-
-
 			paths[#paths + 1] = table.concat(parts, "/", 1, idx)
-
-
 		end
-
-
-
-
 
 		table.insert(paths, self.Folder)
-
-
 		table.insert(paths, self.Folder .. "/")
 
-
-
-
-
 		for i = 1, #paths do
-
-
 			local str = paths[i]
-
-
 			if not isfolder(str) then
-
-
 				makefolder(str)
-
-
 			end
-
-
 		end
-
-
 	end
-
-
-
-
 
 	function InterfaceManager:SaveSettings()
-
-
 		writefile(self.Folder .. "/options.json", httpService:JSONEncode(InterfaceManager.Settings))
-
-
 	end
 
-
-
-
-
 	function InterfaceManager:LoadSettings()
-
-
 		local path = self.Folder .. "/options.json"
-
-
 		if isfile(path) then
-
-
 			local data = readfile(path)
 			local success, decoded = false, nil
 
@@ -9663,187 +9910,134 @@ local InterfaceManager = {} do
 					InterfaceManager.Settings[i] = v
 				end
 			end
-
 		end
 
-
+		InterfaceManager.Settings.Theme = InterfaceManager.Settings.Theme or (self.Library and self.Library.Theme) or "Dark"
+		InterfaceManager.Settings.MenuKeybind = InterfaceManager.Settings.MenuKeybind or "M"
+		InterfaceManager.Settings.WindowTransparency = tonumber(InterfaceManager.Settings.WindowTransparency) or 1
+		InterfaceManager.Settings.Locale = self:GetLocaleValue(InterfaceManager.Settings.Locale or "auto")
 	end
 
-
-	function InterfaceManager:BuildInterfaceSection(tab)
-
-
-		assert(self.Library, "Must set InterfaceManager.Library")
-
-
+	function InterfaceManager:ApplySettings()
 		local Library = self.Library
-
+		if not Library then
+			return
+		end
 
 		local Settings = InterfaceManager.Settings
 
+		if Library.SetLocale then
+			pcall(function() Library:SetLocale(Settings.Locale or "auto") end)
+		end
 
+		if Settings.Theme and table.find(Library.Themes, Settings.Theme) then
+			pcall(function() Library:SetTheme(Settings.Theme) end)
+		end
 
+		if Library.UseAcrylic and not Mobile and Library.ToggleAcrylic then
+			pcall(function() Library:ToggleAcrylic(Settings.Acrylic ~= false) end)
+		end
 
+		if Library.ToggleTransparency then
+			pcall(function() Library:ToggleTransparency(Settings.Transparency ~= false) end)
+		end
+
+		if Library.SetWindowTransparency then
+			pcall(function() Library:SetWindowTransparency(Settings.WindowTransparency or 1) end)
+		end
+	end
+
+	function InterfaceManager:BuildInterfaceSection(tab)
+		assert(self.Library, "Must set InterfaceManager.Library")
+
+		local Library = self.Library
+		local Settings = InterfaceManager.Settings
 
 		InterfaceManager:LoadSettings()
-
-
-
-
+		InterfaceManager:ApplySettings()
 
 		local section = tab:AddSection("Interface", "monitor")
 
-
 		local InterfaceTheme = section:AddDropdown("InterfaceTheme", {
-
-
 			Title = "Theme",
-
-
 			Description = "Changes the interface theme.",
-
-
 			Values = Library.Themes,
-
-
-			Default = self.Library.Theme,
-
-
+			Default = Settings.Theme,
 			Callback = function(Value)
-
-
 				Library:SetTheme(Value)
-
-
 				Settings.Theme = Value
-
-
 				InterfaceManager:SaveSettings()
-
-
 			end
-
-
 		})
-
-
-
-
 
 		InterfaceTheme:SetValue(Settings.Theme)
 
-
-
-
-
-		if Library.UseAcrylic and not Mobile then
-
-
-			section:AddToggle("AcrylicToggle", {
-
-
-				Title = "Acrylic",
-
-
-				Description = "The blurred background requires graphic quality 8+",
-
-
-				Default = Settings.Acrylic,
-
-
-				Callback = function(Value)
-
-
-					Library:ToggleAcrylic(Value)
-
-
-					Settings.Acrylic = Value
-
-
-					InterfaceManager:SaveSettings()
-
-
-				end
-
-
-			})
-
-
-		elseif Mobile then
-
-
-			Settings.Acrylic = false
-
-
-		end
-
-
-
-
-
-		section:AddSlider("WindowTransparency", {
-
-
-			Title = "Window Transparency",
-
-
-			Description = "Adjusts the window transparency.",
-
-
-			Default = 1,
-
-
-			Min = 0,
-
-
-			Max = 3,
-
-
-			Rounding = 1,
-
-
+		local InterfaceLocale = section:AddDropdown("InterfaceLocale", {
+			Title = "Language",
+			Description = "Changes the interface language.",
+			Values = InterfaceManager.LocaleValues,
+			Default = InterfaceManager:GetLocaleLabel(Settings.Locale),
 			Callback = function(Value)
-
-
-				Library:SetWindowTransparency(Value)
-
-
+				Settings.Locale = InterfaceManager:GetLocaleValue(Value)
+				InterfaceManager:SaveSettings()
+				if Library.SetLocale then
+					Library:SetLocale(Settings.Locale)
+				end
 			end
-
-
 		})
 
+		InterfaceLocale:SetValue(InterfaceManager:GetLocaleLabel(Settings.Locale))
 
+		if Library.UseAcrylic and not Mobile then
+			section:AddToggle("AcrylicToggle", {
+				Title = "Acrylic",
+				Description = "The blurred background requires graphic quality 8+",
+				Default = Settings.Acrylic,
+				Callback = function(Value)
+					Library:ToggleAcrylic(Value)
+					Settings.Acrylic = Value
+					InterfaceManager:SaveSettings()
+				end
+			})
+		elseif Mobile then
+			Settings.Acrylic = false
+		end
 
+		section:AddToggle("TransparentToggle", {
+			Title = "Transparency",
+			Description = "Makes the interface more transparent.",
+			Default = Settings.Transparency,
+			Callback = function(Value)
+				Library:ToggleTransparency(Value)
+				Settings.Transparency = Value
+				InterfaceManager:SaveSettings()
+			end
+		})
 
+		local TransparencySlider = section:AddSlider("WindowTransparency", {
+			Title = "Window Transparency",
+			Description = "Adjusts the window transparency.",
+			Default = Settings.WindowTransparency,
+			Min = 0,
+			Max = 3,
+			Rounding = 1,
+			Callback = function(Value)
+				Library:SetWindowTransparency(Value)
+				Settings.WindowTransparency = Value
+				InterfaceManager:SaveSettings()
+			end
+		})
 
-
-
+		TransparencySlider:SetValue(Settings.WindowTransparency)
 
 		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Library.MinimizeKey.Name or Settings.MenuKeybind })
-
-
 		MenuKeybind:OnChanged(function()
-
-
 			Settings.MenuKeybind = MenuKeybind.Value
-
-
 			InterfaceManager:SaveSettings()
-
-
 		end)
-
-
 		Library.MinimizeKeybind = MenuKeybind
-
-
 	end
-
-
 end
-
-
 
 
 
