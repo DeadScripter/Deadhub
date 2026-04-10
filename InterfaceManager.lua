@@ -16,7 +16,7 @@ InterfaceManager.Settings = {
 }
 
 InterfaceManager.LocaleValues = {
-    "Auto (System)",
+    "Auto (Device/User)",
     "Arabic (ar-001)",
     "Chinese Simplified (zh-cn)",
     "Chinese Traditional (zh-tw)",
@@ -173,7 +173,7 @@ function InterfaceManager:BuildInterfaceSection(tab)
 
     local InterfaceLocale = section:AddDropdown("InterfaceLocale", {
         Title = "Language",
-        Description = "Changes the interface language.",
+        Description = "Changes the interface language. Needs localization data or a translation API.",
         Values = InterfaceManager.LocaleValues,
         Default = InterfaceManager:GetLocaleLabel(Settings.Locale),
         Callback = function(Value)
