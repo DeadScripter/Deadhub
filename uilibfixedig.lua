@@ -9,8 +9,7 @@
 
 A modified version of Fluent
 https://fluent-pl.us
-by discart 
-edited by dead 
+
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -793,6 +792,8 @@ local Library = {
 	Locale = "auto",
 	ActiveLocale = "en-us",
 	Translator = nil,
+	TranslatorLocaleConnection = nil,
+	PlayerLocaleConnection = nil,
 	LocalizedText = {},
 	LocalizedCleanup = {},
 }
@@ -1871,7 +1872,7 @@ Library.GUI = GUI
 ProtectGui(GUI)
 
 Library.LocaleChoices = {
-	{ Label = "Auto (System)", Value = "auto" },
+	{ Label = "Auto (Device/User)", Value = "auto" },
 	{ Label = "Arabic (ar-001)", Value = "ar-001" },
 	{ Label = "Chinese Simplified (zh-cn)", Value = "zh-cn" },
 	{ Label = "Chinese Traditional (zh-tw)", Value = "zh-tw" },
@@ -1924,7 +1925,7 @@ function Library:GetLocaleLabel(localeId)
 			return entry.Label
 		end
 	end
-	return "English (en-us)"
+	return "Auto (Device/User)"
 end
 
 function Library:GetLocaleValue(selection)
@@ -1941,13 +1942,13 @@ end
 
 function Library:GetDefaultLocale()
 	local candidates = {}
-	pcall(function() table.insert(candidates, LocalizationService.RobloxLocaleId) end)
-	pcall(function() table.insert(candidates, LocalizationService.SystemLocaleId) end)
 	pcall(function()
 		if LocalPlayer and LocalPlayer.LocaleId then
 			table.insert(candidates, LocalPlayer.LocaleId)
 		end
 	end)
+	pcall(function() table.insert(candidates, LocalizationService.SystemLocaleId) end)
+	pcall(function() table.insert(candidates, LocalizationService.RobloxLocaleId) end)
 	for _, candidate in ipairs(candidates) do
 		local normalized = self:NormalizeLocaleId(candidate)
 		if normalized and normalized ~= "" then
@@ -2085,14 +2086,66 @@ function Library:RefreshLocalizedText()
 	end
 end
 
+function Library:_DisconnectLocalizationSignals()
+	if self.TranslatorLocaleConnection then
+		pcall(function() self.TranslatorLocaleConnection:Disconnect() end)
+		self.TranslatorLocaleConnection = nil
+	end
+	if self.PlayerLocaleConnection then
+		pcall(function() self.PlayerLocaleConnection:Disconnect() end)
+		self.PlayerLocaleConnection = nil
+	end
+end
+
+function Library:_BindLocalizationSignals()
+	if self.Locale ~= "auto" then
+		return
+	end
+	if LocalPlayer and not self.PlayerLocaleConnection then
+		self.PlayerLocaleConnection = LocalPlayer:GetPropertyChangedSignal("LocaleId"):Connect(function()
+			task.defer(function()
+				pcall(function()
+					Library:SetLocale("auto")
+				end)
+			end)
+		end)
+	end
+	if self.Translator and not self.TranslatorLocaleConnection then
+		self.TranslatorLocaleConnection = self.Translator:GetPropertyChangedSignal("LocaleId"):Connect(function()
+			task.defer(function()
+				pcall(function()
+					Library:RefreshLocalizedText()
+				end)
+			end)
+		end)
+	end
+end
+
 function Library:SetLocale(localeId)
 	self.Locale = self:GetLocaleValue(localeId or self.Locale or "auto")
+	self:_DisconnectLocalizationSignals()
+
 	local resolvedLocale = self:ResolveLocale(self.Locale)
+	local ok, translator
+
+	if self.Locale == "auto" and LocalPlayer then
+		ok, translator = pcall(function()
+			return LocalizationService:GetTranslatorForPlayerAsync(LocalPlayer)
+		end)
+		if ok and translator and translator.LocaleId then
+			resolvedLocale = self:NormalizeLocaleId(translator.LocaleId) or resolvedLocale
+		end
+	end
+
+	if not translator then
+		ok, translator = pcall(function()
+			return LocalizationService:GetTranslatorForLocaleAsync(resolvedLocale)
+		end)
+	end
+
 	self.ActiveLocale = resolvedLocale
-	local ok, translator = pcall(function()
-		return LocalizationService:GetTranslatorForLocaleAsync(resolvedLocale)
-	end)
 	self.Translator = ok and translator or nil
+	self:_BindLocalizationSignals()
 	self:RefreshLocalizedText()
 	return self.Translator ~= nil, resolvedLocale
 end
@@ -9821,7 +9874,7 @@ local InterfaceManager = {} do
 	}
 
 	InterfaceManager.LocaleValues = (Library.GetLocaleChoices and Library:GetLocaleChoices()) or {
-		"Auto (System)",
+		"Auto (Device/User)",
 		"Arabic (ar-001)",
 		"Chinese Simplified (zh-cn)",
 		"Chinese Traditional (zh-tw)",
@@ -9974,7 +10027,7 @@ local InterfaceManager = {} do
 
 		local InterfaceLocale = section:AddDropdown("InterfaceLocale", {
 			Title = "Language",
-			Description = "Changes the interface language.",
+			Description = "Changes the interface language. Needs localization data or a translation API.",
 			Values = InterfaceManager.LocaleValues,
 			Default = InterfaceManager:GetLocaleLabel(Settings.Locale),
 			Callback = function(Value)
