@@ -10,6 +10,8 @@
 A modified version of Fluent
 https://fluent-pl.us
 
+heavly edited by dead 
+
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -3072,22 +3074,22 @@ Components.Section = (function()
 				Name = "LeftLine",
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 0, 0.5, 0),
-				Size = UDim2.new(0.5, -LineOffset, 0, 1),
+				Size = UDim2.new(0.5, -LineOffset, 0, 2),
 				BorderSizePixel = 0,
-				BackgroundTransparency = 0.42,
+				BackgroundTransparency = 0.12,
 				ThemeTag = {
-					BackgroundColor3 = "ElementBorder",
+					BackgroundColor3 = "Accent",
 				},
 			}),
 			New("Frame", {
 				Name = "RightLine",
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.new(1, 0, 0.5, 0),
-				Size = UDim2.new(0.5, -LineOffset, 0, 1),
+				Size = UDim2.new(0.5, -LineOffset, 0, 2),
 				BorderSizePixel = 0,
-				BackgroundTransparency = 0.42,
+				BackgroundTransparency = 0.12,
 				ThemeTag = {
-					BackgroundColor3 = "ElementBorder",
+					BackgroundColor3 = "Accent",
 				},
 			}),
 			New("Frame", {
@@ -3110,6 +3112,9 @@ Components.Section = (function()
 					BackgroundTransparency = 1,
 					LayoutOrder = 1,
 					ImageColor3 = UISectionAccent,
+					ThemeTag = {
+						ImageColor3 = "Accent",
+					},
 				}) or nil,
 				New("TextLabel", {
 					Name = "Title",
@@ -3224,6 +3229,15 @@ Components.Tab = (function()
 			New("UICorner", {
 				CornerRadius = UDim.new(0, 6),
 			}),
+			New("UIStroke", {
+				Name = "SelectedStroke",
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+				Thickness = 1.6,
+				Transparency = 1,
+				ThemeTag = {
+					Color = "Accent",
+				},
+			}),
 			New("TextLabel", {
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = not fischbypass and Icon and UDim2.new(0, 30, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
@@ -3258,6 +3272,8 @@ Components.Tab = (function()
 				},
 			}),
 		})
+
+		Tab.SelectedStroke = Tab.Frame:FindFirstChild("SelectedStroke")
 
 		Tab.SpawnScale = DeadHubAddScale(Tab.Frame, "DeadHubTabScale", 0.96)
 		Tab.Frame.BackgroundTransparency = 1
@@ -3331,16 +3347,16 @@ Components.Tab = (function()
 		Tab.Motor, Tab.SetTransparency = Creator.SpringMotor(0.92, Tab.Frame, "BackgroundTransparency")
 
 		Creator.AddSignal(Tab.Frame.MouseEnter, function()
-			Tab.SetTransparency(Tab.Selected and 0.85 or 0.87)
+			Tab.SetTransparency(Tab.Selected and 0.78 or 0.87)
 		end)
 		Creator.AddSignal(Tab.Frame.MouseLeave, function()
-			Tab.SetTransparency(Tab.Selected and 0.89 or 0.92)
+			Tab.SetTransparency(Tab.Selected and 0.82 or 0.92)
 		end)
 		Creator.AddSignal(Tab.Frame.MouseButton1Down, function()
 			Tab.SetTransparency(0.92)
 		end)
 		Creator.AddSignal(Tab.Frame.MouseButton1Up, function()
-			Tab.SetTransparency(Tab.Selected and 0.85 or 0.89)
+			Tab.SetTransparency(Tab.Selected and 0.78 or 0.89)
 		end)
 		Creator.AddSignal(Tab.Frame.MouseButton1Click, function()
 			TabModule:SelectTab(TabIndex)
@@ -3835,9 +3851,15 @@ Components.Tab = (function()
 
 		for _, TabObject in next, TabModule.Tabs do
 			TabObject.SetTransparency(0.92)
+			if TabObject.SelectedStroke then
+				TabObject.SelectedStroke.Transparency = 1
+			end
 			TabObject.Selected = false
 		end
-		TabModule.Tabs[Tab].SetTransparency(0.89)
+		TabModule.Tabs[Tab].SetTransparency(0.82)
+		if TabModule.Tabs[Tab].SelectedStroke then
+			TabModule.Tabs[Tab].SelectedStroke.Transparency = 0.12
+		end
 		TabModule.Tabs[Tab].Selected = true
 
 		Library:SetLocalizedText(Window.TabDisplay, TabModule.Tabs[Tab].Name, "window.tab_display")
@@ -5111,7 +5133,7 @@ Components.Window = (function()
 			Position = UDim2.new(1, -13, 0.5, 0),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
-			Image = "rbxassetid://10734943674",
+			Image = "rbxassetid://10734898355",
 			Parent = SearchFrame,
 			ImageTransparency = 0.3,
 			ThemeTag = {
@@ -5280,18 +5302,9 @@ Components.Window = (function()
 			Parent = Config.Parent,
 		}, rootChildren)
 
-		Window.RootScale = DeadHubAddScale(Window.Root, "DeadHubWindowScale", 0.96)
+		Window.RootScale = DeadHubAddScale(Window.Root, "DeadHubWindowScale", 1)
 
 		CenterWindow()
-
-		local WindowSpawnPosition = Window.Position
-		Window.Root.Position = WindowSpawnPosition + UDim2.fromOffset(0, 12)
-		task.defer(function()
-			if Window.Root and Window.Root.Parent then
-				DeadHubTween(Window.RootScale, DeadHubTweenMed, { Scale = 1 })
-				DeadHubTween(Window.Root, DeadHubTweenMed, { Position = WindowSpawnPosition })
-			end
-		end)
 		Creator.AddSignal(Camera:GetPropertyChangedSignal("ViewportSize"), function()
 			CenterWindow()
 		end)
@@ -5685,26 +5698,11 @@ Components.Window = (function()
 			Window.Minimized = not Window.Minimized
 
 			local RootScale = Window.RootScale or (Window.Root and Window.Root:FindFirstChild("DeadHubWindowScale"))
-			if Window.Minimized then
-				if RootScale then
-					DeadHubTween(RootScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.94 })
-				end
-				task.delay(0.14, function()
-					if Window.Minimized and Window.Root then
-						Window.Root.Visible = false
-						if RootScale then
-							RootScale.Scale = 1
-						end
-					end
-				end)
-			else
-				if Window.Root then
-					Window.Root.Visible = true
-				end
-				if RootScale then
-					RootScale.Scale = 0.94
-					DeadHubTween(RootScale, DeadHubTweenMed, { Scale = 1 })
-				end
+			if RootScale then
+				RootScale.Scale = 1
+			end
+			if Window.Root then
+				Window.Root.Visible = not Window.Minimized
 			end
 
 			for _, Option in next, Library.Options do
@@ -5933,7 +5931,7 @@ ElementsTable.Button = (function()
 		local ButtonFrame = Components.Element(Config.Title, Config.Description, self.Container, true, Config)
 
 		local ButtonIco = New("ImageLabel", {
-			Image = "rbxassetid://10723345518",
+			Image = "rbxassetid://10734898355",
 			Size = UDim2.fromOffset(16, 16),
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, -14, 0.5, 0),
@@ -6262,7 +6260,7 @@ ElementsTable.Dropdown = (function()
 				Position = UDim2.new(1, -13, 0.5, 0),
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
-				Image = "rbxassetid://10734943674",
+				Image = "rbxassetid://10734898355",
 				Parent = SearchBar,
 				ImageTransparency = 0.3,
 				ZIndex = 25,
@@ -6510,7 +6508,11 @@ ElementsTable.Dropdown = (function()
 				end
 			end
 			
-			DropdownHolderCanvas.Position = UDim2.fromOffset(targetX, targetY)
+			local targetPosition = UDim2.fromOffset(targetX, targetY)
+			Dropdown.TargetPosition = targetPosition
+			if not Dropdown.IsAnimatingOpen then
+				DropdownHolderCanvas.Position = targetPosition
+			end
 		end
 
 		local ListSizeX = 0
@@ -6533,9 +6535,12 @@ ElementsTable.Dropdown = (function()
 			local minHeight = Dropdown.Search and 76 or 44
 			local targetHeight = math.clamp(estimatedContent, minHeight, maxHeight)
 			
-			local canvasWidth = math.max(170, ListSizeX > 0 and (ListSizeX + 20) or 170)
+			local innerWidth = (DropdownInner and DropdownInner.AbsoluteSize.X and DropdownInner.AbsoluteSize.X > 0) and DropdownInner.AbsoluteSize.X or 176
+			local canvasWidth = math.max(170, innerWidth)
 			DropdownHolderCanvas.Size = UDim2.fromOffset(canvasWidth, targetHeight)
-			DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
+			if not Dropdown.IsAnimatingOpen then
+				DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
+			end
 		end
 
 		local function RecalculateCanvasSize()
@@ -6651,20 +6656,36 @@ ElementsTable.Dropdown = (function()
 			if SearchBox and not Dropdown.KeepSearch then
 				SearchBox.Text = ""
 			end
+			Dropdown.IsAnimatingOpen = true
 			DropdownHolderCanvas.Visible = true
-			DropdownHolderFrame.Size = UDim2.fromScale(1, 0.82)
+			DropdownHolderFrame.Size = UDim2.fromScale(1, 0.05)
 			RecalculateListPosition()
 			RecalculateListSize()
 			RecalculateCanvasSize()
+			local TargetPosition = Dropdown.TargetPosition or DropdownHolderCanvas.Position
+			DropdownHolderCanvas.Position = TargetPosition + UDim2.fromOffset(0, -8)
 			task.wait()
 			if Library:IsBulkApplying() then
+				DropdownHolderCanvas.Position = TargetPosition
 				DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
+				Dropdown.IsAnimatingOpen = false
 			else
 				TweenService:Create(
+					DropdownHolderCanvas,
+					TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+					{ Position = TargetPosition }
+				):Play()
+				TweenService:Create(
 					DropdownHolderFrame,
-					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+					TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
 					{ Size = UDim2.fromScale(1, 1) }
 				):Play()
+				task.delay(0.22, function()
+					Dropdown.IsAnimatingOpen = false
+					if Dropdown.Opened then
+						RecalculateListPosition()
+					end
+				end)
 			end
 			TweenService:Create(
 				DropdownIco,
@@ -6675,6 +6696,7 @@ ElementsTable.Dropdown = (function()
 
 		function Dropdown:Close()
 			Dropdown.Opened = false
+			Dropdown.IsAnimatingOpen = false
 			if Dropdown.OpenToRight then
 				Dropdown.SavedY = nil
 			end
@@ -10761,14 +10783,7 @@ function Library:CreateMinimizer(Config)
 
 	btnInstance.ZIndex = (holder.ZIndex or 0) + 1
 
-	local MinHolderScale = DeadHubAddScale(holder, "DeadHubMinimizerScale", 0.86)
-	task.defer(function()
-		if holder and holder.Parent and holder.Visible and MinHolderScale then
-			DeadHubTween(MinHolderScale, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
-		elseif MinHolderScale then
-			MinHolderScale.Scale = 1
-		end
-	end)
+	local MinHolderScale = DeadHubAddScale(holder, "DeadHubMinimizerScale", 1)
 
 
 
@@ -10903,41 +10918,23 @@ function Library:CreateMinimizer(Config)
 		local MinButtonScale = DeadHubAddScale(button, "DeadHubMinimizerButtonScale", 1)
 
 		AddSignal(button.MouseEnter, function()
-			DeadHubTween(button, DeadHubTweenFast, {
-				BackgroundTransparency = math.max((backgroundTransparency or 0) - 0.08, 0),
-			})
+			button.BackgroundTransparency = math.max((backgroundTransparency or 0) - 0.08, 0)
 			if MinButtonScale then
-				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1.045 })
+				MinButtonScale.Scale = 1
 			end
 		end)
 
 		AddSignal(button.MouseLeave, function()
-			DeadHubTween(button, DeadHubTweenFast, {
-				BackgroundTransparency = backgroundTransparency or 0,
-			})
+			button.BackgroundTransparency = backgroundTransparency or 0
 			if MinButtonScale then
-				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1 })
-			end
-		end)
-
-		AddSignal(button.MouseButton1Down, function()
-			if MinButtonScale then
-				DeadHubTween(MinButtonScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.94 })
-			end
-		end)
-
-		AddSignal(button.MouseButton1Up, function()
-			if MinButtonScale then
-				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1.045 })
+				MinButtonScale.Scale = 1
 			end
 		end)
 
 		AddSignal(button.MouseButton1Click, function()
-			task.delay(0.04, function()
-				if not isDragging and Library.Window then
-					Library.Window:Minimize()
-				end
-			end)
+			if not isDragging and Library.Window then
+				Library.Window:Minimize()
+			end
 		end)
 
 
@@ -11755,9 +11752,6 @@ end)
 AddSignal(MinimizeButton.MouseButton1Click, function()
 
 
-	task.wait(0.1)
-
-
 	if not isDragging then
 
 
@@ -11774,9 +11768,6 @@ end)
 
 
 AddSignal(MobileMinimizeButton.MouseButton1Click, function()
-
-
-	task.wait(0.1)
 
 
 	if not isDragging then
