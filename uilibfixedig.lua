@@ -9,8 +9,7 @@
 
 A modified version of Fluent
 https://fluent-pl.us
-
-heavly edited by dead 
+edited by dead
 
 ]]
 
@@ -3858,7 +3857,7 @@ Components.Tab = (function()
 		end
 		TabModule.Tabs[Tab].SetTransparency(0.82)
 		if TabModule.Tabs[Tab].SelectedStroke then
-			TabModule.Tabs[Tab].SelectedStroke.Transparency = 0.12
+			TabModule.Tabs[Tab].SelectedStroke.Transparency = 1
 		end
 		TabModule.Tabs[Tab].Selected = true
 
@@ -4727,6 +4726,139 @@ Components.TitleBar = (function()
 				},
 			}),
 		})
+
+		TitleBar.BadgeHolder = New("Frame", {
+			Name = "HeaderButtonHolder",
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -118, 0.5, 0),
+			Size = UDim2.new(0, 240, 0, 28),
+			BackgroundTransparency = 1,
+			Parent = TitleBar.Frame,
+		}, {
+			New("UIListLayout", {
+				Padding = UDim.new(0, 6),
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Right,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+		})
+
+		function TitleBar:AddBadge(BadgeConfig)
+			BadgeConfig = BadgeConfig or {}
+			local text = tostring(BadgeConfig.Text or BadgeConfig.Title or "")
+			local icon = BadgeConfig.Icon or BadgeConfig.Image
+			local resolvedIcon = icon
+			pcall(function()
+				if icon and Library.GetIcon then
+					resolvedIcon = Library:GetIcon(icon) or icon
+				end
+			end)
+
+			local textWidth = 0
+			if text ~= "" then
+				pcall(function()
+					textWidth = TextService:GetTextSize(text, 12, Enum.Font.GothamSemibold, Vector2.new(math.huge, 18)).X
+				end)
+			end
+
+			local width = BadgeConfig.Width or math.clamp((resolvedIcon and 28 or 14) + textWidth + (text ~= "" and 12 or 0), 28, 140)
+			local Badge = New("TextButton", {
+				Name = tostring(BadgeConfig.Name or "HeaderButton"),
+				Size = UDim2.fromOffset(width, 26),
+				BackgroundTransparency = 0.78,
+				Text = "",
+				Parent = TitleBar.BadgeHolder,
+				AutoButtonColor = false,
+				ThemeTag = {
+					BackgroundColor3 = "Element",
+				},
+			}, {
+				New("UICorner", {
+					CornerRadius = UDim.new(1, 0),
+				}),
+				New("UIStroke", {
+					Transparency = 0.58,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+					ThemeTag = {
+						Color = "InElementBorder",
+					},
+				}),
+				New("UIListLayout", {
+					Padding = UDim.new(0, 5),
+					FillDirection = Enum.FillDirection.Horizontal,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				New("UIPadding", {
+					PaddingLeft = UDim.new(0, 7),
+					PaddingRight = UDim.new(0, 7),
+				}),
+			})
+
+			local BadgeStroke = Badge:FindFirstChildOfClass("UIStroke")
+			local BadgeScale = DeadHubAddScale(Badge, "DeadHubHeaderBadgeScale", 1)
+
+			if resolvedIcon then
+				New("ImageLabel", {
+					Image = resolvedIcon,
+					Size = UDim2.fromOffset(15, 15),
+					BackgroundTransparency = 1,
+					LayoutOrder = 1,
+					ThemeTag = {
+						ImageColor3 = "Text",
+					},
+					Parent = Badge,
+				})
+			end
+
+			if text ~= "" then
+				New("TextLabel", {
+					Text = text,
+					FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
+					TextSize = 12,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, resolvedIcon and -22 or 0, 1, 0),
+					LayoutOrder = 2,
+					ThemeTag = {
+						TextColor3 = "Text",
+					},
+					Parent = Badge,
+				})
+			end
+
+			Creator.AddSignal(Badge.MouseEnter, function()
+				DeadHubTween(Badge, DeadHubTweenFast, { BackgroundTransparency = 0.68 })
+				if BadgeStroke then DeadHubTween(BadgeStroke, DeadHubTweenFast, { Transparency = 0.38 }) end
+				if BadgeScale then DeadHubTween(BadgeScale, DeadHubTweenFast, { Scale = 1.02 }) end
+			end)
+			Creator.AddSignal(Badge.MouseLeave, function()
+				DeadHubTween(Badge, DeadHubTweenFast, { BackgroundTransparency = 0.78 })
+				if BadgeStroke then DeadHubTween(BadgeStroke, DeadHubTweenFast, { Transparency = 0.58 }) end
+				if BadgeScale then DeadHubTween(BadgeScale, DeadHubTweenFast, { Scale = 1 }) end
+			end)
+			Creator.AddSignal(Badge.MouseButton1Down, function()
+				if BadgeScale then DeadHubTween(BadgeScale, TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.97 }) end
+			end)
+			Creator.AddSignal(Badge.MouseButton1Up, function()
+				if BadgeScale then DeadHubTween(BadgeScale, DeadHubTweenFast, { Scale = 1.02 }) end
+			end)
+			Creator.AddSignal(Badge.MouseButton1Click, function()
+				if BadgeConfig.Callback then
+					Library:SafeCallback(BadgeConfig.Callback)
+				elseif BadgeConfig.Link and setclipboard then
+					pcall(setclipboard, tostring(BadgeConfig.Link))
+					if Library.Notify then
+						Library:Notify({ Title = "Copied", Content = tostring(BadgeConfig.Link), Duration = 2 })
+					end
+				end
+			end)
+
+			return Badge
+		end
+
 		TitleBar.CloseButton = BarButton(Components.Assets.Close, UDim2.new(1, -4, 0, 4), TitleBar.Frame, function()
 			Library.Window:Dialog({
 				Title = "Close",
@@ -5321,6 +5453,22 @@ Components.Window = (function()
 			UserInfoSubtitle = Config.UserInfoSubtitle,
 			UserInfoSubtitleColor = Config.UserInfoSubtitleColor,
 		})
+
+		function Window:AddHeaderButton(ButtonConfig)
+			if Window.TitleBar and Window.TitleBar.AddBadge then
+				return Window.TitleBar:AddBadge(ButtonConfig)
+			end
+		end
+
+		Window.AddTopButton = Window.AddHeaderButton
+		Window.AddTitleButton = Window.AddHeaderButton
+
+		local headerButtons = Config.HeaderButtons or Config.TopButtons or Config.TitleButtons
+		if type(headerButtons) == "table" then
+			for _, buttonConfig in ipairs(headerButtons) do
+				Window:AddHeaderButton(buttonConfig)
+			end
+		end
 
 		if Config.UserInfo then
 			local function parseColor(value)
@@ -6018,10 +6166,10 @@ ElementsTable.Toggle = (function()
 		})
 
 		local ToggleBorder = New("UIStroke", {
-			Transparency = 0.45,
-			Thickness = 1.25,
+			Transparency = 0.62,
+			Thickness = 1.2,
 			ThemeTag = {
-				Color = "ToggleSlider",
+				Color = "InElementBorder",
 			},
 		})
 
@@ -6030,9 +6178,9 @@ ElementsTable.Toggle = (function()
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, -14, 0.5, 0),
 			Parent = ToggleFrame.Frame,
-			BackgroundTransparency = 0.88,
+			BackgroundTransparency = 0.58,
 			ThemeTag = {
-				BackgroundColor3 = "Accent",
+				BackgroundColor3 = "DropdownFrame",
 			},
 		}, {
 			New("UICorner", {
@@ -6052,11 +6200,13 @@ ElementsTable.Toggle = (function()
 			Value = not not Value
 			Toggle.Value = Value
 
-			Creator.OverrideTag(ToggleBorder, { Color = Toggle.Value and "Accent" or "ToggleSlider" })
-			Creator.OverrideTag(ToggleCircle, { ImageColor3 = Toggle.Value and "ToggleToggled" or "ToggleSlider" })
+			Creator.OverrideTag(ToggleSlider, { BackgroundColor3 = Toggle.Value and "Accent" or "DropdownFrame" })
+			Creator.OverrideTag(ToggleBorder, { Color = Toggle.Value and "Accent" or "InElementBorder" })
+			Creator.OverrideTag(ToggleCircle, { ImageColor3 = Toggle.Value and "ToggleToggled" or "SubText" })
+			ToggleBorder.Transparency = Toggle.Value and 0.28 or 0.62
 			if Library:IsBulkApplying() then
 				ToggleCircle.Position = UDim2.new(0, Toggle.Value and 24 or 2, 0.5, 0)
-				ToggleSlider.BackgroundTransparency = Toggle.Value and 0.18 or 0.88
+				ToggleSlider.BackgroundTransparency = Toggle.Value and 0.22 or 0.58
 			else
 				TweenService:Create(
 					ToggleCircle,
@@ -6066,10 +6216,10 @@ ElementsTable.Toggle = (function()
 				TweenService:Create(
 					ToggleSlider,
 					TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-					{ BackgroundTransparency = Toggle.Value and 0.18 or 0.88 }
+					{ BackgroundTransparency = Toggle.Value and 0.22 or 0.58 }
 				):Play()
 			end
-			ToggleCircle.ImageTransparency = Toggle.Value and 0 or 0.28
+			ToggleCircle.ImageTransparency = Toggle.Value and 0 or 0.18
 
 			Library:SafeCallback(Toggle.Callback, Toggle.Value)
 			Library:SafeCallback(Toggle.Changed, Toggle.Value)
@@ -9015,9 +9165,40 @@ local Icons = {
 	["lucide-dumbbell"] = "rbxassetid://18273453053"
 }
 
+local IconAliases = {
+	["github"] = "code-2",
+	["git"] = "git-branch",
+	["discord"] = "message-circle",
+	["server"] = "message-circle",
+	["roblox"] = "gamepad-2",
+	["game"] = "gamepad-2",
+	["youtube"] = "video",
+	["yt"] = "video",
+	["tiktok"] = "music-2",
+	["flag"] = "flag",
+	["flags"] = "flag",
+	["language"] = "languages",
+	["languages"] = "languages",
+	["website"] = "globe-2",
+	["web"] = "globe-2",
+	["link"] = "external-link",
+	["external"] = "external-link",
+	["mouse-pointer-click"] = "mouse-pointer-click",
+}
+
 function Library:GetIcon(Name)
-	if Name ~= nil and Icons["lucide-" .. Name] then
-		return Icons["lucide-" .. Name]
+	if Name ~= nil then
+		local rawName = tostring(Name)
+		if Icons[rawName] then
+			return Icons[rawName]
+		end
+
+		local lookup = string.lower(rawName)
+		lookup = IconAliases[lookup] or lookup
+
+		if Icons["lucide-" .. lookup] then
+			return Icons["lucide-" .. lookup]
+		end
 	end
 	return nil
 end
