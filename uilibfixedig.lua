@@ -27,7 +27,43 @@ local UserInputService = game:GetService("UserInputService")
 
 local Mobile = not RunService:IsStudio() and table.find({Enum.Platform.IOS, Enum.Platform.Android}, UserInputService:GetPlatform()) ~= nil
 
+
 local UISectionAccent = Color3.fromRGB(220, 58, 58)
+
+local DeadHubTweenFast = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local DeadHubTweenMed = TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+local function DeadHubTween(Object, Info, Props)
+	if not Object or not Object.Parent then
+		return nil
+	end
+
+	local Tween
+	local Ok = pcall(function()
+		Tween = TweenService:Create(Object, Info or DeadHubTweenFast, Props)
+		Tween:Play()
+	end)
+
+	return Ok and Tween or nil
+end
+
+local function DeadHubAddScale(Object, Name, Scale)
+	if not Object then
+		return nil
+	end
+
+	local Existing = Object:FindFirstChild(Name)
+	if Existing and Existing:IsA("UIScale") then
+		Existing.Scale = Scale or Existing.Scale
+		return Existing
+	end
+
+	local ScaleObject = Instance.new("UIScale")
+	ScaleObject.Name = Name
+	ScaleObject.Scale = Scale or 1
+	ScaleObject.Parent = Object
+	return ScaleObject
+end
 
 
 local fischbypass
@@ -2730,7 +2766,7 @@ Components.Element = (function()
 			FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal),
 			Text = Title,
 			TextColor3 = Color3.fromRGB(240, 240, 240),
-			TextSize = 13,
+			TextSize = 14,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Size = UDim2.new(1, 0, 0, 14),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -2779,7 +2815,7 @@ Components.Element = (function()
 		Element.DescLabel = New("TextLabel", {
 			FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json"),
 			Text = Desc,
-			TextColor3 = Color3.fromRGB(200, 200, 200),
+			TextColor3 = Color3.fromRGB(190, 190, 190),
 			TextSize = 12,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -2796,23 +2832,23 @@ Components.Element = (function()
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(10, 0),
-			Size = UDim2.new(1, -28, 0, 0),
+			Position = UDim2.fromOffset(14, 0),
+			Size = UDim2.new(1, -36, 0, 0),
 		}, {
 			New("UIListLayout", {
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			}),
 			New("UIPadding", {
-				PaddingBottom = UDim.new(0, 13),
-				PaddingTop = UDim.new(0, 13),
+				PaddingBottom = UDim.new(0, 14),
+				PaddingTop = UDim.new(0, 14),
 			}),
 			Element.Header,
 			Element.DescLabel,
 		})
 
 		Element.Border = New("UIStroke", {
-			Transparency = 0.5,
+			Transparency = 0.62,
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = Color3.fromRGB(0, 0, 0),
 			ThemeTag = {
@@ -2823,7 +2859,7 @@ Components.Element = (function()
 		Element.Frame = New("TextButton", {
 			Visible = Options.Visible and Options.Visible or true,
 			Size = UDim2.new(1, 0, 0, 0),
-			BackgroundTransparency = 0.89,
+			BackgroundTransparency = 0.84,
 			BackgroundColor3 = Color3.fromRGB(130, 130, 130),
 			Parent = Parent,
 			AutomaticSize = Enum.AutomaticSize.Y,
@@ -2835,7 +2871,7 @@ Components.Element = (function()
 			},
 		}, {
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 4),
+				CornerRadius = UDim.new(0, 9),
 			}),
 			Element.Border,
 			Element.LabelHolder,
@@ -2976,16 +3012,16 @@ Components.Element = (function()
 			)
 
 			Creator.AddSignal(Element.Frame.MouseEnter, function()
-				SetTransparency(Creator.GetThemeProperty("ElementTransparency") - Creator.GetThemeProperty("HoverChange"))
+				SetTransparency(math.max(Creator.GetThemeProperty("ElementTransparency") - 0.055, 0))
 			end)
 			Creator.AddSignal(Element.Frame.MouseLeave, function()
 				SetTransparency(Creator.GetThemeProperty("ElementTransparency"))
 			end)
 			Creator.AddSignal(Element.Frame.MouseButton1Down, function()
-				SetTransparency(Creator.GetThemeProperty("ElementTransparency") + Creator.GetThemeProperty("HoverChange"))
+				SetTransparency(math.min(Creator.GetThemeProperty("ElementTransparency") + 0.035, 1))
 			end)
 			Creator.AddSignal(Element.Frame.MouseButton1Up, function()
-				SetTransparency(Creator.GetThemeProperty("ElementTransparency") - Creator.GetThemeProperty("HoverChange"))
+				SetTransparency(math.max(Creator.GetThemeProperty("ElementTransparency") - 0.055, 0))
 			end)
 		end
 
@@ -2997,90 +3033,108 @@ Components.Section = (function()
 
 	return function(Title, Parent, Icon)
 		local Section = {}
+		local SectionTitle = tostring(Title or "")
+		local TextWidth = 72
+
+		pcall(function()
+			TextWidth = TextService:GetTextSize(
+				SectionTitle,
+				13,
+				Enum.Font.GothamSemibold,
+				Vector2.new(math.huge, 20)
+			).X
+		end)
+
+		local CenterWidth = math.clamp(TextWidth + (Icon and 34 or 22), 92, 230)
+		local LineOffset = (CenterWidth / 2) + 12
 
 		Section.Layout = New("UIListLayout", {
 			Padding = UDim.new(0, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
 		})
 
 		Section.Container = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 26),
-			Position = UDim2.fromOffset(0, 34),
+			Name = "Container",
+			Size = UDim2.new(1, 0, 0, 0),
+			Position = UDim2.fromOffset(0, 32),
 			BackgroundTransparency = 1,
 		}, {
 			Section.Layout,
 		})
 
-		local HeaderContent = New("Frame", {
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -28, 1, 0),
-			Position = UDim2.fromOffset(14, 0),
-		}, {
-			New("UIListLayout", {
-				Padding = UDim.new(0, 6),
-				FillDirection = Enum.FillDirection.Horizontal,
-				SortOrder = Enum.SortOrder.LayoutOrder,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-			}),
-			Icon and New("ImageLabel", {
-				Image = Icon,
-				Size = UDim2.fromOffset(16, 16),
-				BackgroundTransparency = 1,
-				LayoutOrder = 1,
-				ImageColor3 = UISectionAccent,
-			}) or nil,
-			New("TextLabel", {
-				RichText = true,
-				Text = Title,
-				TextTransparency = 0,
-				FontFace = Font.new("rbxassetid://12187365364", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
-				TextSize = 16,
-				TextXAlignment = "Left",
-				TextYAlignment = "Center",
-				Size = UDim2.fromScale(0, 1),
-				AutomaticSize = Enum.AutomaticSize.X,
-				BackgroundTransparency = 1,
-				LayoutOrder = 2,
-				ThemeTag = {
-					TextColor3 = "Text",
-				},
-			}),
-		})
-
 		local SectionHeader = New("Frame", {
-			Size = UDim2.new(1, -10, 0, 28),
+			Name = "SectionHeader",
+			Size = UDim2.new(1, -10, 0, 26),
 			Position = UDim2.fromOffset(5, 0),
-			BackgroundTransparency = 0.12,
-			ThemeTag = {
-				BackgroundColor3 = "Element",
-			},
+			BackgroundTransparency = 1,
 		}, {
-			New("UICorner", {
-				CornerRadius = UDim.new(0, 8),
-			}),
-			New("UIStroke", {
-				Transparency = 0.45,
-				Thickness = 1,
+			New("Frame", {
+				Name = "LeftLine",
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 0, 0.5, 0),
+				Size = UDim2.new(0.5, -LineOffset, 0, 1),
+				BorderSizePixel = 0,
+				BackgroundTransparency = 0.42,
 				ThemeTag = {
-					Color = "ElementBorder",
+					BackgroundColor3 = "ElementBorder",
 				},
 			}),
 			New("Frame", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 7, 0.5, 0),
-				Size = UDim2.fromOffset(3, 14),
+				Name = "RightLine",
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, 0, 0.5, 0),
+				Size = UDim2.new(0.5, -LineOffset, 0, 1),
 				BorderSizePixel = 0,
-				BackgroundColor3 = UISectionAccent,
+				BackgroundTransparency = 0.42,
+				ThemeTag = {
+					BackgroundColor3 = "ElementBorder",
+				},
+			}),
+			New("Frame", {
+				Name = "CenterTitle",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromOffset(CenterWidth, 24),
+				BackgroundTransparency = 1,
 			}, {
-				New("UICorner", {
-					CornerRadius = UDim.new(1, 0),
+				New("UIListLayout", {
+					Padding = UDim.new(0, 6),
+					FillDirection = Enum.FillDirection.Horizontal,
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+				}),
+				Icon and New("ImageLabel", {
+					Image = Icon,
+					Size = UDim2.fromOffset(15, 15),
+					BackgroundTransparency = 1,
+					LayoutOrder = 1,
+					ImageColor3 = UISectionAccent,
+				}) or nil,
+				New("TextLabel", {
+					Name = "Title",
+					RichText = true,
+					Text = SectionTitle,
+					TextTransparency = 0.05,
+					FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
+					TextSize = 13,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					TextYAlignment = Enum.TextYAlignment.Center,
+					Size = UDim2.fromScale(0, 1),
+					AutomaticSize = Enum.AutomaticSize.X,
+					BackgroundTransparency = 1,
+					LayoutOrder = 2,
+					ThemeTag = {
+						TextColor3 = "Text",
+					},
 				}),
 			}),
-			HeaderContent,
 		})
 
 		Section.Root = New("Frame", {
+			Name = "Section",
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 36),
+			Size = UDim2.new(1, 0, 0, 34),
 			LayoutOrder = 7,
 			Parent = Parent,
 		}, {
@@ -3205,6 +3259,17 @@ Components.Tab = (function()
 			}),
 		})
 
+		Tab.SpawnScale = DeadHubAddScale(Tab.Frame, "DeadHubTabScale", 0.96)
+		Tab.Frame.BackgroundTransparency = 1
+		task.delay(math.min(0.025 * TabIndex, 0.18), function()
+			if Tab.Frame and Tab.Frame.Parent then
+				if Tab.SpawnScale then
+					DeadHubTween(Tab.SpawnScale, DeadHubTweenMed, { Scale = 1 })
+				end
+				DeadHubTween(Tab.Frame, DeadHubTweenMed, { BackgroundTransparency = 0.92 })
+			end
+		end)
+
 		local ContainerLayout = New("UIListLayout", {
 			Padding = UDim.new(0, 5),
 			SortOrder = Enum.SortOrder.LayoutOrder,
@@ -3213,7 +3278,7 @@ Components.Tab = (function()
 		Tab.ContainerAnim = New("CanvasGroup", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			GroupTransparency = 0,
+			GroupTransparency = 1,
 			Parent = Window.ContainerHolder,
 			Visible = false,
 			Position = UDim2.fromOffset(0, 0),
@@ -3416,7 +3481,7 @@ Components.Tab = (function()
 			local SubTabContainerAnim = New("CanvasGroup", {
 				Size = UDim2.fromScale(1, 1),
 				BackgroundTransparency = 1,
-				GroupTransparency = 0,
+				GroupTransparency = 1,
 				Parent = self.SubTabContainerHolder,
 				Visible = false,
 				Position = UDim2.fromOffset(0, 0),
@@ -3906,9 +3971,9 @@ Components.Button = (function()
 		local Button = {}
 
 		Button.Title = New("TextLabel", {
-			FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json"),
+			FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
 			TextColor3 = Color3.fromRGB(200, 200, 200),
-			TextSize = 14,
+			TextSize = 13,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			TextYAlignment = Enum.TextYAlignment.Center,
@@ -3929,23 +3994,23 @@ Components.Button = (function()
 			},
 		}, {
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 4),
+				CornerRadius = UDim.new(0, 8),
 			}),
 		})
 
 		Button.Frame = New("TextButton", {
-			Size = UDim2.new(0, 0, 0, 32),
+			Size = UDim2.new(0, 0, 0, 34),
 			Parent = Parent,
 			ThemeTag = {
 				BackgroundColor3 = "DialogButton",
 			},
 		}, {
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 4),
+				CornerRadius = UDim.new(0, 8),
 			}),
 			New("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-				Transparency = 0.65,
+				Transparency = 0.5,
 				ThemeTag = {
 					Color = "DialogButtonBorder",
 				},
@@ -3955,16 +4020,16 @@ Components.Button = (function()
 		})
 		local Motor, SetTransparency = Creator.SpringMotor(1, Button.HoverFrame, "BackgroundTransparency", DialogCheck)
 		Creator.AddSignal(Button.Frame.MouseEnter, function()
-			SetTransparency(0.97)
+			SetTransparency(0.9)
 		end)
 		Creator.AddSignal(Button.Frame.MouseLeave, function()
-			SetTransparency(1)
+			SetTransparency(0.96)
 		end)
 		Creator.AddSignal(Button.Frame.MouseButton1Down, function()
-			SetTransparency(1)
+			SetTransparency(0.96)
 		end)
 		Creator.AddSignal(Button.Frame.MouseButton1Up, function()
-			SetTransparency(0.97)
+			SetTransparency(0.9)
 		end)
 
 		return Button
@@ -5215,7 +5280,18 @@ Components.Window = (function()
 			Parent = Config.Parent,
 		}, rootChildren)
 
+		Window.RootScale = DeadHubAddScale(Window.Root, "DeadHubWindowScale", 0.96)
+
 		CenterWindow()
+
+		local WindowSpawnPosition = Window.Position
+		Window.Root.Position = WindowSpawnPosition + UDim2.fromOffset(0, 12)
+		task.defer(function()
+			if Window.Root and Window.Root.Parent then
+				DeadHubTween(Window.RootScale, DeadHubTweenMed, { Scale = 1 })
+				DeadHubTween(Window.Root, DeadHubTweenMed, { Position = WindowSpawnPosition })
+			end
+		end)
 		Creator.AddSignal(Camera:GetPropertyChangedSignal("ViewportSize"), function()
 			CenterWindow()
 		end)
@@ -5607,7 +5683,29 @@ Components.Window = (function()
 
 		function Window:Minimize()
 			Window.Minimized = not Window.Minimized
-			Window.Root.Visible = not Window.Minimized
+
+			local RootScale = Window.RootScale or (Window.Root and Window.Root:FindFirstChild("DeadHubWindowScale"))
+			if Window.Minimized then
+				if RootScale then
+					DeadHubTween(RootScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.94 })
+				end
+				task.delay(0.14, function()
+					if Window.Minimized and Window.Root then
+						Window.Root.Visible = false
+						if RootScale then
+							RootScale.Scale = 1
+						end
+					end
+				end)
+			else
+				if Window.Root then
+					Window.Root.Visible = true
+				end
+				if RootScale then
+					RootScale.Scale = 0.94
+					DeadHubTween(RootScale, DeadHubTweenMed, { Scale = 1 })
+				end
+			end
 
 			for _, Option in next, Library.Options do
 				if Option and Option.Type == "Dropdown" and Option.Opened then
@@ -5638,7 +5736,7 @@ Components.Window = (function()
 					if Mobile then
 						local mobileButton = Library.Minimizer:FindFirstChild("TextButton")
 						if mobileButton then
-							local imageLabel = mobileButton:FindFirstChild("ImageLabel")
+							local imageLabel = mobileButton:FindFirstChild("Icon", true) or mobileButton:FindFirstChildWhichIsA("ImageLabel", true)
 							if imageLabel then
 								imageLabel.Image = Window.Minimized and "rbxassetid://10734896384" or "rbxassetid://10734897102"
 							end
@@ -5646,7 +5744,7 @@ Components.Window = (function()
 					else
 						local desktopButton = Library.Minimizer:FindFirstChild("TextButton")
 						if desktopButton then
-							local imageLabel = desktopButton:FindFirstChild("ImageLabel")
+							local imageLabel = desktopButton:FindFirstChild("Icon", true) or desktopButton:FindFirstChildWhichIsA("ImageLabel", true)
 							if imageLabel then
 								imageLabel.Image = Window.Minimized and "rbxassetid://10734896384" or "rbxassetid://10734897102"
 							end
@@ -5835,16 +5933,49 @@ ElementsTable.Button = (function()
 		local ButtonFrame = Components.Element(Config.Title, Config.Description, self.Container, true, Config)
 
 		local ButtonIco = New("ImageLabel", {
-			Image = "rbxassetid://10709791437",
+			Image = "rbxassetid://10723345518",
 			Size = UDim2.fromOffset(16, 16),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
+			Position = UDim2.new(1, -14, 0.5, 0),
 			BackgroundTransparency = 1,
 			Parent = ButtonFrame.Frame,
 			ThemeTag = {
-				ImageColor3 = "Text",
+				ImageColor3 = "SubText",
 			},
 		})
+
+		local ButtonScale = DeadHubAddScale(ButtonFrame.Frame, "DeadHubButtonScale", 1)
+
+		Creator.AddSignal(ButtonFrame.Frame.MouseEnter, function()
+			if ButtonScale then
+				DeadHubTween(ButtonScale, DeadHubTweenFast, { Scale = 1.01 })
+			end
+			if ButtonFrame.Border then
+				DeadHubTween(ButtonFrame.Border, DeadHubTweenFast, { Transparency = 0.42 })
+			end
+		end)
+
+		Creator.AddSignal(ButtonFrame.Frame.MouseLeave, function()
+			if ButtonScale then
+				DeadHubTween(ButtonScale, DeadHubTweenFast, { Scale = 1 })
+			end
+			if ButtonFrame.Border then
+				DeadHubTween(ButtonFrame.Border, DeadHubTweenFast, { Transparency = 0.62 })
+			end
+		end)
+
+		Creator.AddSignal(ButtonFrame.Frame.MouseButton1Down, function()
+			if ButtonScale then
+				DeadHubTween(ButtonScale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.985 })
+			end
+		end)
+
+		Creator.AddSignal(ButtonFrame.Frame.MouseButton1Up, function()
+			if ButtonScale then
+				DeadHubTween(ButtonScale, DeadHubTweenFast, { Scale = 1.01 })
+			end
+		end)
+
 
 		Creator.AddSignal(ButtonFrame.Frame.MouseButton1Click, function()
 			Library:SafeCallback(Config.Callback)
@@ -5879,34 +6010,35 @@ ElementsTable.Toggle = (function()
 
 		local ToggleCircle = New("ImageLabel", {
 			AnchorPoint = Vector2.new(0, 0.5),
-			Size = UDim2.fromOffset(14, 14),
+			Size = UDim2.fromOffset(18, 18),
 			Position = UDim2.new(0, 2, 0.5, 0),
 			Image = "http://www.roblox.com/asset/?id=12266946128",
-			ImageTransparency = 0.5,
+			ImageTransparency = 0.28,
 			ThemeTag = {
 				ImageColor3 = "ToggleSlider",
 			},
 		})
 
 		local ToggleBorder = New("UIStroke", {
-			Transparency = 0.5,
+			Transparency = 0.45,
+			Thickness = 1.25,
 			ThemeTag = {
 				Color = "ToggleSlider",
 			},
 		})
 
 		local ToggleSlider = New("Frame", {
-			Size = UDim2.fromOffset(36, 18),
+			Size = UDim2.fromOffset(44, 22),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
+			Position = UDim2.new(1, -14, 0.5, 0),
 			Parent = ToggleFrame.Frame,
-			BackgroundTransparency = 1,
+			BackgroundTransparency = 0.88,
 			ThemeTag = {
 				BackgroundColor3 = "Accent",
 			},
 		}, {
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 9),
+				CornerRadius = UDim.new(1, 0),
 			}),
 			ToggleBorder,
 			ToggleCircle,
@@ -5925,21 +6057,21 @@ ElementsTable.Toggle = (function()
 			Creator.OverrideTag(ToggleBorder, { Color = Toggle.Value and "Accent" or "ToggleSlider" })
 			Creator.OverrideTag(ToggleCircle, { ImageColor3 = Toggle.Value and "ToggleToggled" or "ToggleSlider" })
 			if Library:IsBulkApplying() then
-				ToggleCircle.Position = UDim2.new(0, Toggle.Value and 19 or 2, 0.5, 0)
-				ToggleSlider.BackgroundTransparency = Toggle.Value and 0.45 or 1
+				ToggleCircle.Position = UDim2.new(0, Toggle.Value and 24 or 2, 0.5, 0)
+				ToggleSlider.BackgroundTransparency = Toggle.Value and 0.18 or 0.88
 			else
 				TweenService:Create(
 					ToggleCircle,
 					TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-					{ Position = UDim2.new(0, Toggle.Value and 19 or 2, 0.5, 0) }
+					{ Position = UDim2.new(0, Toggle.Value and 24 or 2, 0.5, 0) }
 				):Play()
 				TweenService:Create(
 					ToggleSlider,
 					TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-					{ BackgroundTransparency = Toggle.Value and 0.45 or 1 }
+					{ BackgroundTransparency = Toggle.Value and 0.18 or 0.88 }
 				):Play()
 			end
-			ToggleCircle.ImageTransparency = Toggle.Value and 0 or 0.5
+			ToggleCircle.ImageTransparency = Toggle.Value and 0 or 0.28
 
 			Library:SafeCallback(Toggle.Callback, Toggle.Value)
 			Library:SafeCallback(Toggle.Changed, Toggle.Value)
@@ -6014,12 +6146,12 @@ ElementsTable.Dropdown = (function()
 			FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
 			Text = "",
 			TextColor3 = Color3.fromRGB(240, 240, 240),
-			TextSize = 14,
+			TextSize = 13,
 			AutomaticSize = Enum.AutomaticSize.Y,
 			TextYAlignment = Enum.TextYAlignment.Center,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Size = UDim2.new(1, -40, 0.5, 0),
-			Position = UDim2.new(0, 8, 0.5, 0),
+			Size = UDim2.new(1, -42, 1, 0),
+			Position = UDim2.new(0, 12, 0.5, 0),
 			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundTransparency = 1,
 			TextTruncate = Enum.TextTruncate.AtEnd,
@@ -6036,7 +6168,7 @@ ElementsTable.Dropdown = (function()
 			Image = "rbxassetid://10709790948",
 			Size = UDim2.fromOffset(16, 16),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -8, 0.5, 0),
+			Position = UDim2.new(1, -12, 0.5, 0),
 			BackgroundTransparency = 1,
 			Rotation = initialRotation,
 			ThemeTag = {
@@ -6045,20 +6177,20 @@ ElementsTable.Dropdown = (function()
 		})
 
 		local DropdownInner = New("TextButton", {
-			Size = UDim2.fromOffset(160, 30),
-			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(176, 34),
+			Position = UDim2.new(1, -14, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			BackgroundTransparency = 0.9,
+			BackgroundTransparency = 0.84,
 			Parent = DropdownFrame.Frame,
 			ThemeTag = {
 				BackgroundColor3 = "DropdownFrame",
 			},
 		}, {
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 5),
+				CornerRadius = UDim.new(0, 9),
 			}),
 			New("UIStroke", {
-				Transparency = 0.5,
+				Transparency = 0.55,
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				ThemeTag = {
 					Color = "InElementBorder",
@@ -6178,7 +6310,7 @@ ElementsTable.Dropdown = (function()
 			SearchBar,
 			DropdownScrollFrame,
 			New("UICorner", {
-				CornerRadius = UDim.new(0, 7),
+				CornerRadius = UDim.new(0, 10),
 			}),
 			New("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
@@ -6520,6 +6652,7 @@ ElementsTable.Dropdown = (function()
 				SearchBox.Text = ""
 			end
 			DropdownHolderCanvas.Visible = true
+			DropdownHolderFrame.Size = UDim2.fromScale(1, 0.82)
 			RecalculateListPosition()
 			RecalculateListSize()
 			RecalculateCanvasSize()
@@ -6545,8 +6678,17 @@ ElementsTable.Dropdown = (function()
 			if Dropdown.OpenToRight then
 				Dropdown.SavedY = nil
 			end
-			DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
-			DropdownHolderCanvas.Visible = false
+			local CloseTween = DeadHubTween(
+				DropdownHolderFrame,
+				TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = UDim2.fromScale(1, 0.86) }
+			)
+			task.delay(0.16, function()
+				if not Dropdown.Opened and DropdownHolderCanvas then
+					DropdownHolderCanvas.Visible = false
+					DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
+				end
+			end)
 			TweenService:Create(
 				DropdownIco,
 				TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
@@ -6854,8 +6996,8 @@ ElementsTable.Paragraph = (function()
 		Config.Content = Config.Content or ""
 
 		local Paragraph = Components.Element(Config.Title, Config.Content, Paragraph.Container, false, Config)
-		Paragraph.Frame.BackgroundTransparency = 0.92
-		Paragraph.Border.Transparency = 0.6
+		Paragraph.Frame.BackgroundTransparency = 0.86
+		Paragraph.Border.Transparency = 0.7
 
 		Paragraph.SetTitle = Paragraph.SetTitle
 		Paragraph.SetDesc = Paragraph.SetDesc
@@ -10619,6 +10761,15 @@ function Library:CreateMinimizer(Config)
 
 	btnInstance.ZIndex = (holder.ZIndex or 0) + 1
 
+	local MinHolderScale = DeadHubAddScale(holder, "DeadHubMinimizerScale", 0.86)
+	task.defer(function()
+		if holder and holder.Parent and holder.Visible and MinHolderScale then
+			DeadHubTween(MinHolderScale, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		elseif MinHolderScale then
+			MinHolderScale.Scale = 1
+		end
+	end)
+
 
 
 
@@ -10749,33 +10900,44 @@ function Library:CreateMinimizer(Config)
 
 
 
+		local MinButtonScale = DeadHubAddScale(button, "DeadHubMinimizerButtonScale", 1)
+
 		AddSignal(button.MouseEnter, function()
-			Creator.Tween(button, {0.18, Enum.EasingStyle.Quad}, {
+			DeadHubTween(button, DeadHubTweenFast, {
 				BackgroundTransparency = math.max((backgroundTransparency or 0) - 0.08, 0),
 			})
+			if MinButtonScale then
+				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1.045 })
+			end
 		end)
 
 		AddSignal(button.MouseLeave, function()
-			Creator.Tween(button, {0.18, Enum.EasingStyle.Quad}, {
+			DeadHubTween(button, DeadHubTweenFast, {
 				BackgroundTransparency = backgroundTransparency or 0,
 			})
+			if MinButtonScale then
+				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1 })
+			end
+		end)
+
+		AddSignal(button.MouseButton1Down, function()
+			if MinButtonScale then
+				DeadHubTween(MinButtonScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.94 })
+			end
+		end)
+
+		AddSignal(button.MouseButton1Up, function()
+			if MinButtonScale then
+				DeadHubTween(MinButtonScale, DeadHubTweenFast, { Scale = 1.045 })
+			end
 		end)
 
 		AddSignal(button.MouseButton1Click, function()
-
-
-			task.wait(0.1)
-
-
-			if not isDragging and Library.Window then
-
-
-				Library.Window:Minimize()
-
-
-			end
-
-
+			task.delay(0.04, function()
+				if not isDragging and Library.Window then
+					Library.Window:Minimize()
+				end
+			end)
 		end)
 
 
